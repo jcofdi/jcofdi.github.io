@@ -46,3 +46,9 @@ function calculateValues() {
     document.getElementById('targetRes_Width').textContent = targetRes_Width;
     document.getElementById('targetRes_Height').textContent = targetRes_Height;
 }
+
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+}
+
+document.getElementById('toggleDarkMode').addEventListener('click', toggleDarkMode);
