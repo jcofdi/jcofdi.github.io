@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>DCS Detent Calculator — Aircraft Presets (JSON)</title>
+  <title>DCS Detent Calculator</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main>
     <header>
-      <h1>DCS Detent Calculator — Demo</h1>
-      <p class="muted">Select an aircraft preset (loaded from aircrafts.json). Edit aircrafts.json to add or update presets.</p>
+      <h1>DCS Detent Calculator</h1>
+      <p class="muted">Select an aircraft preset.</p>
     </header>
 
     <section class="grid">
@@ -31,16 +31,16 @@
           <input id="detentLoc" type="number" step="1" min="0" value="20">
         </label>
 
-        <label> X Saturation (Sat_X)
-          <input id="satX" type="number" step="1" min="1" value="90">
-        </label>
-
-        <label> Deadzone (DZ)
-          <input id="dz" type="number" step="1" min="0" value="0">
-        </label>
-
-        <label class="checkbox"> Inverted (INV = "X")
+        <label class="checkbox left"> Inverted
           <input id="inv" type="checkbox" />
+        </label>
+
+        <label> X Saturation
+          <input id="satX" type="number" step="1" min="1" value="100">
+        </label>
+
+        <label> Deadzone
+          <input id="dz" type="number" step="1" min="0" value="0">
         </label>
 
         <div class="actions">
@@ -48,8 +48,24 @@
           <button id="resetBtn">Reset</button>
         </div>
 
-        <h3>Computed values</h3>
-        <div class="computed">
+        <!-- Debug toggle: shown below other inputs -->
+        <label class="debug-toggle"><input id="showDebug" type="checkbox"> Show debug variables (F/G table, slopes, intercepts)</label>
+
+      </div>
+
+      <div class="panel chart">
+        <h2>Chart</h2>
+        <canvas id="chart" class="responsive-canvas"></canvas>
+
+        <!-- Horizontal menu -->
+        <h3>User Sliders</h3>
+        <div class="menu-row labels" id="origRow"></div>
+        <div class="menu-row values" id="userRow"></div>
+      </div>
+
+      <div class="panel debug-table hidden" id="debugPanel">
+        <h2 class="muted">Debug — computed values & F → G table</h2>
+        <div class="computed debug-computed">
           <div><strong>MIL</strong>: <span id="milVal">—</span></div>
           <div><strong>Sat Factor</strong>: <span id="satFactor">—</span></div>
           <div><strong>Deadzone Factor (DZ_F)</strong>: <span id="dzFactor">—</span></div>
@@ -59,21 +75,7 @@
           <div><strong>AR Slope</strong>: <span id="arSlope">—</span></div>
           <div><strong>AR Int</strong>: <span id="arInt">—</span></div>
         </div>
-      </div>
 
-      <div class="panel chart">
-        <h2>Chart (Display values)</h2>
-        <canvas id="chart" class="responsive-canvas"></canvas>
-        <div class="legend"><span class="leg-swatch"></span> Display value (0..100)</div>
-
-        <!-- Horizontal menu (H22..S23) -->
-        <h3>User Sliders (Horizontal menu)</h3>
-        <div class="menu-row labels" id="origRow"></div>
-        <div class="menu-row values" id="userRow"></div>
-      </div>
-
-      <div class="panel debug-table" aria-hidden="true">
-        <h2 class="muted">(Debug) F → G table (vertical)</h2>
         <div class="table-scroll">
           <table id="seriesTable">
             <thead>
@@ -86,7 +88,7 @@
     </section>
 
     <footer>
-      <small class="muted">Presets loaded from aircrafts.json. Edit aircrafts.json to add or update aircrafts & types.</small>
+      <small class="muted">Use the aircraft presets to populate the location field.</small>
     </footer>
   </main>
 
@@ -105,6 +107,7 @@
     const invEl = el('inv');
     const computeBtn = el('computeBtn');
     const resetBtn = el('resetBtn');
+    const showDebugEl = el('showDebug');
 
     const milVal = el('milVal');
     const satFactor = el('satFactor');
@@ -121,6 +124,7 @@
 
     const origRowEl = el('origRow');
     const userRowEl = el('userRow');
+    const debugPanel = el('debugPanel');
 
     // Store loaded presets in memory
     let aircraftPresets = [];
@@ -149,7 +153,7 @@
       aircraftPresets.forEach((a, idx) => {
         const opt = document.createElement('option');
         opt.value = String(idx);
-        opt.textContent = `${a.name} — ${a.type} ${a.location}`;
+        opt.textContent = `${a.name} — ${a.type}`;
         aircraftSelect.appendChild(opt);
       });
       // Add editable option
@@ -170,13 +174,17 @@
     function applySelectedPreset() {
       const val = aircraftSelect.value;
       if (val === 'custom') {
-        dynamicTypeSpan.textContent = dynamicTypeSpan.textContent || 'A/B';
+        // allow editing for custom selection
+        abEl.disabled = false;
+        dynamicTypeSpan.textContent = 'A/B';
         return;
       }
       const idx = Number(val);
       const preset = aircraftPresets[idx];
       if (!preset) return;
+      // set the fixed location from preset and disable editing
       abEl.value = Number(preset.location);
+      abEl.disabled = true;
       dynamicTypeSpan.textContent = preset.type || 'A/B';
     }
 
@@ -298,14 +306,6 @@
       });
       ctx.stroke();
 
-      ctx.fillStyle = '#2563eb';
-      series.forEach(pt => {
-        const px = xToPx(pt.x), py = yToPx(pt.display);
-        ctx.beginPath();
-        ctx.arc(px, py, Math.max(3, 4 * (W / 700)), 0, Math.PI*2);
-        ctx.fill();
-      });
-
       ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(padding.l, padding.t); ctx.lineTo(padding.l, H - padding.b); ctx.lineTo(W - padding.r, H - padding.b); ctx.stroke();
     }
@@ -334,7 +334,8 @@
         AR_Slope: ranges.AR_Slope,
         AR_Int: ranges.AR_Int
       };
-      renderComputed(computed);
+      // only render computed if debug panel visible
+      if (!debugPanel.classList.contains('hidden')) renderComputed(computed);
 
       const res = DetentCalculator.computeSeries({
         abLoc: inputs.abLoc,
@@ -354,10 +355,18 @@
 
     computeBtn.addEventListener('click', computeAndRender);
     [abEl, detEl, satEl, dzEl, invEl].forEach(i => i.addEventListener('change', () => computeAndRender()));
+
+    // show/hide debug panel
+    showDebugEl.addEventListener('change', () => {
+      if (showDebugEl.checked) debugPanel.classList.remove('hidden');
+      else debugPanel.classList.add('hidden');
+      computeAndRender();
+    });
+
     resetBtn.addEventListener('click', () => {
       aircraftSelect.selectedIndex = 0;
       applySelectedPreset();
-      detEl.value = 20; satEl.value = 90; dzEl.value = 0; invEl.checked = false;
+      detEl.value = 20; satEl.value = 100; dzEl.value = 0; invEl.checked = false; showDebugEl.checked = false; debugPanel.classList.add('hidden');
       computeAndRender();
     });
 
