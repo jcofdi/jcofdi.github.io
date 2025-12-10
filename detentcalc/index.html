@@ -13,7 +13,7 @@
       <p class="muted">Select an aircraft preset.</p>
     </header>
 
-    <section class="grid">
+    <section class="grid" id="mainGrid">
       <div class="panel inputs">
         <h2>Inputs</h2>
 
@@ -49,7 +49,7 @@
         </div>
 
         <!-- Debug toggle: shown below other inputs -->
-        <label class="debug-toggle"><input id="showDebug" type="checkbox"> Show debug variables (F/G table, slopes, intercepts)</label>
+        <label class="debug-toggle"><input id="showDebug" type="checkbox"> Show debug variables</label>
 
       </div>
 
@@ -63,28 +63,7 @@
         <div class="menu-row values" id="userRow"></div>
       </div>
 
-      <div class="panel debug-table hidden" id="debugPanel">
-        <h2 class="muted">Debug — computed values & F → G table</h2>
-        <div class="computed debug-computed">
-          <div><strong>MIL</strong>: <span id="milVal">—</span></div>
-          <div><strong>Sat Factor</strong>: <span id="satFactor">—</span></div>
-          <div><strong>Deadzone Factor (DZ_F)</strong>: <span id="dzFactor">—</span></div>
-          <div><strong>Combined Factor (CF)</strong>: <span id="cfVal">—</span></div>
-          <div><strong>NR Slope</strong>: <span id="nrSlope">—</span></div>
-          <div><strong>NR Int</strong>: <span id="nrInt">—</span></div>
-          <div><strong>AR Slope</strong>: <span id="arSlope">—</span></div>
-          <div><strong>AR Int</strong>: <span id="arInt">—</span></div>
-        </div>
-
-        <div class="table-scroll">
-          <table id="seriesTable">
-            <thead>
-              <tr><th>X (F)</th><th>G (rounded)</th><th>Display</th></tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
+      <!-- Debug panel will be created dynamically only when the checkbox is checked -->
     </section>
 
     <footer>
@@ -100,7 +79,6 @@
     const aircraftSelect = el('aircraftSelect');
     const dynamicTypeSpan = el('dynamicType');
     const abEl = el('abLoc');
-    const abLocLabel = el('abLocLabel'); // contains dynamic label
     const detEl = el('detentLoc');
     const satEl = el('satX');
     const dzEl = el('dz');
@@ -109,22 +87,24 @@
     const resetBtn = el('resetBtn');
     const showDebugEl = el('showDebug');
 
-    const milVal = el('milVal');
-    const satFactor = el('satFactor');
-    const dzFactor = el('dzFactor');
-    const cfVal = el('cfVal');
-    const nrSlope = el('nrSlope');
-    const nrInt = el('nrInt');
-    const arSlope = el('arSlope');
-    const arInt = el('arInt');
-
-    const tableBody = document.querySelector('#seriesTable tbody');
     const canvas = el('chart');
     const ctx = canvas.getContext('2d');
 
     const origRowEl = el('origRow');
     const userRowEl = el('userRow');
-    const debugPanel = el('debugPanel');
+    const mainGrid = el('mainGrid');
+
+    // debug-related references will be created on demand
+    let debugPanel = null;
+    let milEl = null;
+    let satFactorEl = null;
+    let dzFactorEl = null;
+    let cfEl = null;
+    let nrSlopeEl = null;
+    let nrIntEl = null;
+    let arSlopeEl = null;
+    let arIntEl = null;
+    let tableBody = null;
 
     // Store loaded presets in memory
     let aircraftPresets = [];
@@ -163,7 +143,7 @@
       aircraftSelect.appendChild(sep);
       const customOpt = document.createElement('option');
       customOpt.value = 'custom';
-      customOpt.textContent = 'Custom / none (enter location manually)';
+      customOpt.textContent = 'Custom / none';
       aircraftSelect.appendChild(customOpt);
 
       // set default selection (first) and apply
@@ -214,18 +194,93 @@
       };
     }
 
+    function createDebugPanel() {
+      // If already present, do nothing
+      if (debugPanel) return;
+
+      // Create container
+      debugPanel = document.createElement('div');
+      debugPanel.className = 'panel debug-table';
+      debugPanel.id = 'debugPanel';
+      debugPanel.setAttribute('aria-hidden', 'false');
+
+      // Build inner HTML
+      debugPanel.innerHTML = `
+        <h2 class="muted">Debug — computed values & F → G table</h2>
+        <div class="computed debug-computed">
+          <div><strong>MIL</strong>: <span id="milVal">—</span></div>
+          <div><strong>Sat Factor</strong>: <span id="satFactor">—</span></div>
+          <div><strong>Deadzone Factor</strong>: <span id="dzFactor">—</span></div>
+          <div><strong>Combined Factor (CF)</strong>: <span id="cfVal">—</span></div>
+          <div><strong>NR Slope</strong>: <span id="nrSlope">—</span></div>
+          <div><strong>NR Int</strong>: <span id="nrInt">—</span></div>
+          <div><strong>AR Slope</strong>: <span id="arSlope">—</span></div>
+          <div><strong>AR Int</strong>: <span id="arInt">—</span></div>
+        </div>
+        <div class="table-scroll">
+          <table id="seriesTable">
+            <thead>
+              <tr><th>X (F)</th><th>G (rounded)</th><th>Display</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      `;
+
+      // Append debug panel after chart panel in the grid
+      const chartPanel = document.querySelector('.panel.chart');
+      if (chartPanel && chartPanel.parentNode) {
+        chartPanel.parentNode.insertBefore(debugPanel, chartPanel.nextSibling);
+      } else {
+        mainGrid.appendChild(debugPanel);
+      }
+
+      // grab references to the elements we need to update
+      milEl = debugPanel.querySelector('#milVal');
+      satFactorEl = debugPanel.querySelector('#satFactor');
+      dzFactorEl = debugPanel.querySelector('#dzFactor');
+      cfEl = debugPanel.querySelector('#cfVal');
+      nrSlopeEl = debugPanel.querySelector('#nrSlope');
+      nrIntEl = debugPanel.querySelector('#nrInt');
+      arSlopeEl = debugPanel.querySelector('#arSlope');
+      arIntEl = debugPanel.querySelector('#arInt');
+      tableBody = debugPanel.querySelector('#seriesTable tbody');
+    }
+
+    function removeDebugPanel() {
+      if (!debugPanel) return;
+      debugPanel.remove();
+      debugPanel = null;
+      milEl = satFactorEl = dzFactorEl = cfEl = nrSlopeEl = nrIntEl = arSlopeEl = arIntEl = tableBody = null;
+    }
+
+    function clearDebugDisplay() {
+      if (!milEl) return;
+      milEl.textContent = '—';
+      satFactorEl.textContent = '—';
+      dzFactorEl.textContent = '—';
+      cfEl.textContent = '—';
+      nrSlopeEl.textContent = '—';
+      nrIntEl.textContent = '—';
+      arSlopeEl.textContent = '—';
+      arIntEl.textContent = '—';
+      if (tableBody) tableBody.innerHTML = '';
+    }
+
     function renderComputed(computed) {
-      milVal.textContent = computed.MIL;
-      satFactor.textContent = Math.round(Number(computed.satFactor || 0));
-      dzFactor.textContent = Math.round(Number(computed.dzFactor || 0));
-      cfVal.textContent = Number(computed.CF).toFixed(6);
-      nrSlope.textContent = Number(computed.NR_Slope).toFixed(6);
-      nrInt.textContent = Number(computed.NR_Int).toFixed(6);
-      arSlope.textContent = Number(computed.AR_Slope).toFixed(6);
-      arInt.textContent = Number(computed.AR_Int).toFixed(6);
+      if (!milEl) return;
+      milEl.textContent = computed.MIL;
+      satFactorEl.textContent = Math.round(Number(computed.satFactor || 0));
+      dzFactorEl.textContent = Math.round(Number(computed.dzFactor || 0));
+      cfEl.textContent = Number(computed.CF).toFixed(6);
+      nrSlopeEl.textContent = Number(computed.NR_Slope).toFixed(6);
+      nrIntEl.textContent = Number(computed.NR_Int).toFixed(6);
+      arSlopeEl.textContent = Number(computed.AR_Slope).toFixed(6);
+      arIntEl.textContent = Number(computed.AR_Int).toFixed(6);
     }
 
     function renderTable(series) {
+      if (!tableBody) return;
       tableBody.innerHTML = '';
       for (const r of series) {
         const tr = document.createElement('tr');
@@ -312,31 +367,8 @@
 
     function computeAndRender() {
       const inputs = getInputs();
-      const factors = DetentCalculator.computeFactors({
-        detentLoc: inputs.detentLoc,
-        satX: inputs.satX,
-        dz: inputs.dz
-      });
 
-      const ranges = DetentCalculator.computeRanges({
-        abLoc: inputs.abLoc,
-        combinedFactor: factors.combinedFactor,
-        invFlag: inputs.invFlag
-      });
-
-      const computed = {
-        MIL: ranges.MIL,
-        satFactor: factors.satFactor,
-        dzFactor: factors.dzFactor,
-        CF: ranges.combinedFactor || factors.combinedFactor || ranges.CF,
-        NR_Slope: ranges.NR_Slope,
-        NR_Int: ranges.NR_Int,
-        AR_Slope: ranges.AR_Slope,
-        AR_Int: ranges.AR_Int
-      };
-      // only render computed if debug panel visible
-      if (!debugPanel.classList.contains('hidden')) renderComputed(computed);
-
+      // Always compute series and draw menu/chart (these are end-user UI items)
       const res = DetentCalculator.computeSeries({
         abLoc: inputs.abLoc,
         detentLoc: inputs.detentLoc,
@@ -344,10 +376,34 @@
         dz: inputs.dz,
         invFlag: inputs.invFlag,
       });
-
       buildHorizontalMenu(res.series);
-      renderTable(res.series);
       drawChart(res.series);
+
+      // Only render debug values/table when debug panel exists
+      if (debugPanel) {
+        const factors = DetentCalculator.computeFactors({
+          detentLoc: inputs.detentLoc,
+          satX: inputs.satX,
+          dz: inputs.dz
+        });
+        const ranges = DetentCalculator.computeRanges({
+          abLoc: inputs.abLoc,
+          combinedFactor: factors.combinedFactor,
+          invFlag: inputs.invFlag
+        });
+        const computed = {
+          MIL: ranges.MIL,
+          satFactor: factors.satFactor,
+          dzFactor: factors.dzFactor,
+          CF: ranges.combinedFactor || factors.combinedFactor || ranges.CF,
+          NR_Slope: ranges.NR_Slope,
+          NR_Int: ranges.NR_Int,
+          AR_Slope: ranges.AR_Slope,
+          AR_Int: ranges.AR_Int
+        };
+        renderComputed(computed);
+        renderTable(res.series);
+      }
     }
 
     // handle resizes: redraw
@@ -358,15 +414,20 @@
 
     // show/hide debug panel
     showDebugEl.addEventListener('change', () => {
-      if (showDebugEl.checked) debugPanel.classList.remove('hidden');
-      else debugPanel.classList.add('hidden');
-      computeAndRender();
+      if (showDebugEl.checked) {
+        createDebugPanel();
+        computeAndRender();
+      } else {
+        removeDebugPanel();
+      }
     });
 
     resetBtn.addEventListener('click', () => {
       aircraftSelect.selectedIndex = 0;
       applySelectedPreset();
-      detEl.value = 20; satEl.value = 100; dzEl.value = 0; invEl.checked = false; showDebugEl.checked = false; debugPanel.classList.add('hidden');
+      detEl.value = 20; satEl.value = 100; dzEl.value = 0; invEl.checked = false;
+      showDebugEl.checked = false;
+      removeDebugPanel();
       computeAndRender();
     });
 
