@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DCS Detent Calculator — Aircraft Presets (JSON)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <h1>DCS Detent Calculator — Demo</h1>
+      <p class="muted">Select an aircraft preset (loaded from aircrafts.json). Edit aircrafts.json to add or update presets.</p>
+    </header>
+
+    <section class="grid">
+      <div class="panel inputs">
+        <h2>Inputs</h2>
+
+        <label id="abLabel">Aircraft preset
+          <select id="aircraftSelect" aria-label="Select aircraft preset">
+            <option>Loading…</option>
+          </select>
+        </label>
+
+        <label id="abLocLabel"> <span id="dynamicType">A/B</span> Location
+          <input id="abLoc" type="number" step="1" min="0" value="12">
+        </label>
+
+        <label> Detent Loc
+          <input id="detentLoc" type="number" step="1" min="0" value="20">
+        </label>
+
+        <label> X Saturation (Sat_X)
+          <input id="satX" type="number" step="1" min="1" value="90">
+        </label>
+
+        <label> Deadzone (DZ)
+          <input id="dz" type="number" step="1" min="0" value="0">
+        </label>
+
+        <label class="checkbox"> Inverted (INV = "X")
+          <input id="inv" type="checkbox" />
+        </label>
+
+        <div class="actions">
+          <button id="computeBtn">Compute</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+
+        <h3>Computed values</h3>
+        <div class="computed">
+          <div><strong>MIL</strong>: <span id="milVal">—</span></div>
+          <div><strong>Sat Factor</strong>: <span id="satFactor">—</span></div>
+          <div><strong>Deadzone Factor (DZ_F)</strong>: <span id="dzFactor">—</span></div>
+          <div><strong>Combined Factor (CF)</strong>: <span id="cfVal">—</span></div>
+          <div><strong>NR Slope</strong>: <span id="nrSlope">—</span></div>
+          <div><strong>NR Int</strong>: <span id="nrInt">—</span></div>
+          <div><strong>AR Slope</strong>: <span id="arSlope">—</span></div>
+          <div><strong>AR Int</strong>: <span id="arInt">—</span></div>
+        </div>
+      </div>
+
+      <div class="panel chart">
+        <h2>Chart (Display values)</h2>
+        <canvas id="chart" class="responsive-canvas"></canvas>
+        <div class="legend"><span class="leg-swatch"></span> Display value (0..100)</div>
+
+        <!-- Horizontal menu (H22..S23) -->
+        <h3>User Sliders (Horizontal menu)</h3>
+        <div class="menu-row labels" id="origRow"></div>
+        <div class="menu-row values" id="userRow"></div>
+      </div>
+
+      <div class="panel debug-table" aria-hidden="true">
+        <h2 class="muted">(Debug) F → G table (vertical)</h2>
+        <div class="table-scroll">
+          <table id="seriesTable">
+            <thead>
+              <tr><th>X (F)</th><th>G (rounded)</th><th>Display</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <small class="muted">Presets loaded from aircrafts.json. Edit aircrafts.json to add or update aircrafts & types.</small>
+    </footer>
+  </main>
+
+  <script src="detentCalculator.js"></script>
+  <script>
+  (function(){
+    const el = id => document.getElementById(id);
+
+    const aircraftSelect = el('aircraftSelect');
+    const dynamicTypeSpan = el('dynamicType');
+    const abEl = el('abLoc');
+    const abLocLabel = el('abLocLabel'); // contains dynamic label
+    const detEl = el('detentLoc');
+    const satEl = el('satX');
+    const dzEl = el('dz');
+    const invEl = el('inv');
+    const computeBtn = el('computeBtn');
+    const resetBtn = el('resetBtn');
+
+    const milVal = el('milVal');
+    const satFactor = el('satFactor');
+    const dzFactor = el('dzFactor');
+    const cfVal = el('cfVal');
+    const nrSlope = el('nrSlope');
+    const nrInt = el('nrInt');
+    const arSlope = el('arSlope');
+    const arInt = el('arInt');
+
+    const tableBody = document.querySelector('#seriesTable tbody');
+    const canvas = el('chart');
+    const ctx = canvas.getContext('2d');
+
+    const origRowEl = el('origRow');
+    const userRowEl = el('userRow');
+
+    // Store loaded presets in memory
+    let aircraftPresets = [];
+
+    // Load presets from aircrafts.json only (no plaintext fallback)
+    async function loadPresets() {
+      try {
+        const res = await fetch('aircrafts.json', { cache: 'no-cache' });
+        if (!res.ok) throw new Error('Fetch failed ' + res.status);
+        const data = await res.json();
+        aircraftPresets = Array.isArray(data) ? data : [];
+        buildAircraftSelect();
+      } catch (err) {
+        console.warn('Could not load aircrafts.json (are you running via file://?).', err);
+        // populate with a small built-in fallback
+        aircraftPresets = [
+          { name: 'AH-64 Apache', location: 12, type: 'A/B' },
+          { name: 'Default (Custom)', location: 12, type: 'A/B' }
+        ];
+        buildAircraftSelect();
+      }
+    }
+
+    function buildAircraftSelect() {
+      aircraftSelect.innerHTML = '';
+      aircraftPresets.forEach((a, idx) => {
+        const opt = document.createElement('option');
+        opt.value = String(idx);
+        opt.textContent = `${a.name} — ${a.type} ${a.location}`;
+        aircraftSelect.appendChild(opt);
+      });
+      // Add editable option
+      const sep = document.createElement('option');
+      sep.disabled = true;
+      sep.textContent = '──────────';
+      aircraftSelect.appendChild(sep);
+      const customOpt = document.createElement('option');
+      customOpt.value = 'custom';
+      customOpt.textContent = 'Custom / none (enter location manually)';
+      aircraftSelect.appendChild(customOpt);
+
+      // set default selection (first) and apply
+      aircraftSelect.selectedIndex = 0;
+      applySelectedPreset();
+    }
+
+    function applySelectedPreset() {
+      const val = aircraftSelect.value;
+      if (val === 'custom') {
+        dynamicTypeSpan.textContent = dynamicTypeSpan.textContent || 'A/B';
+        return;
+      }
+      const idx = Number(val);
+      const preset = aircraftPresets[idx];
+      if (!preset) return;
+      abEl.value = Number(preset.location);
+      dynamicTypeSpan.textContent = preset.type || 'A/B';
+    }
+
+    aircraftSelect.addEventListener('change', () => {
+      applySelectedPreset();
+      computeAndRender();
+    });
+
+    // Resize scheduler (debounce using rAF)
+    let pendingResize = false;
+    function scheduleResizeAndRedraw(cb) {
+      if (pendingResize) return;
+      pendingResize = true;
+      requestAnimationFrame(() => {
+        pendingResize = false;
+        cb();
+      });
+    }
+
+    function getInputs() {
+      return {
+        abLoc: Number(abEl.value || 0),
+        detentLoc: Number(detEl.value || 0),
+        satX: Number(satEl.value || 100),
+        dz: Number(dzEl.value || 0),
+        invFlag: invEl.checked ? 'X' : '' // match spreadsheet style
+      };
+    }
+
+    function renderComputed(computed) {
+      milVal.textContent = computed.MIL;
+      satFactor.textContent = Math.round(Number(computed.satFactor || 0));
+      dzFactor.textContent = Math.round(Number(computed.dzFactor || 0));
+      cfVal.textContent = Number(computed.CF).toFixed(6);
+      nrSlope.textContent = Number(computed.NR_Slope).toFixed(6);
+      nrInt.textContent = Number(computed.NR_Int).toFixed(6);
+      arSlope.textContent = Number(computed.AR_Slope).toFixed(6);
+      arInt.textContent = Number(computed.AR_Int).toFixed(6);
+    }
+
+    function renderTable(series) {
+      tableBody.innerHTML = '';
+      for (const r of series) {
+        const tr = document.createElement('tr');
+        const tdX = document.createElement('td'); tdX.textContent = r.x; tdX.className = 'num';
+        const tdG = document.createElement('td'); tdG.textContent = r.g; tdG.className = 'num';
+        const tdD = document.createElement('td'); tdD.textContent = r.display; tdD.className = 'num';
+        tr.appendChild(tdX); tr.appendChild(tdG); tr.appendChild(tdD);
+        tableBody.appendChild(tr);
+      }
+    }
+
+    function buildHorizontalMenu(series) {
+      origRowEl.innerHTML = '';
+      userRowEl.innerHTML = '';
+      for (const pt of series) {
+        const c1 = document.createElement('div');
+        c1.className = 'menu-cell label';
+        c1.textContent = String(pt.x);
+        origRowEl.appendChild(c1);
+
+        const c2 = document.createElement('div');
+        c2.className = 'menu-cell value';
+        c2.textContent = String(pt.display);
+        userRowEl.appendChild(c2);
+      }
+    }
+
+    // Responsive canvas sizing — set the backing buffer size using DPR, maintain aspect ratio
+    function resizeCanvasToDisplaySize(canvas, aspectRatio = 700/320) {
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(200, Math.floor(canvas.clientWidth || canvas.parentElement.clientWidth));
+      const height = Math.max(120, Math.floor(width / aspectRatio));
+      if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.height = height + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      return { width, height };
+    }
+
+    function drawChart(series) {
+      if (!series || !series.length) return;
+      const { width: cssW, height: cssH } = resizeCanvasToDisplaySize(canvas, 700/320);
+
+      const padding = {l:36, r:12, t:12, b:36};
+      const W = cssW, H = cssH;
+      const plotW = Math.max(10, W - padding.l - padding.r);
+      const plotH = Math.max(10, H - padding.t - padding.b);
+
+      const xToPx = x => padding.l + (x / 100) * plotW;
+      const yToPx = y => padding.t + (1 - (y / 100)) * plotH;
+
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.strokeStyle = '#eef2f7';
+      ctx.fillStyle = '#374151';
+      ctx.lineWidth = 1;
+      ctx.font = Math.max(10, Math.round(12 * (W / 700))) + 'px system-ui, Arial';
+
+      for (let xi=0; xi<=100; xi+=20) {
+        const px = xToPx(xi);
+        ctx.beginPath(); ctx.moveTo(px, padding.t); ctx.lineTo(px, H - padding.b); ctx.stroke();
+        ctx.fillText(String(xi), px - 6, H - 12);
+      }
+      for (let yi=0; yi<=100; yi+=20) {
+        const py = yToPx(yi);
+        ctx.beginPath(); ctx.moveTo(padding.l, py); ctx.lineTo(W - padding.r, py); ctx.stroke();
+        ctx.fillText(String(yi), 6, py + 4);
+      }
+
+      ctx.beginPath();
+      ctx.lineWidth = Math.max(1.5, 2 * (W / 700));
+      ctx.strokeStyle = '#2563eb';
+      series.forEach((pt, i) => {
+        const px = xToPx(pt.x), py = yToPx(pt.display);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+
+      ctx.fillStyle = '#2563eb';
+      series.forEach(pt => {
+        const px = xToPx(pt.x), py = yToPx(pt.display);
+        ctx.beginPath();
+        ctx.arc(px, py, Math.max(3, 4 * (W / 700)), 0, Math.PI*2);
+        ctx.fill();
+      });
+
+      ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(padding.l, padding.t); ctx.lineTo(padding.l, H - padding.b); ctx.lineTo(W - padding.r, H - padding.b); ctx.stroke();
+    }
+
+    function computeAndRender() {
+      const inputs = getInputs();
+      const factors = DetentCalculator.computeFactors({
+        detentLoc: inputs.detentLoc,
+        satX: inputs.satX,
+        dz: inputs.dz
+      });
+
+      const ranges = DetentCalculator.computeRanges({
+        abLoc: inputs.abLoc,
+        combinedFactor: factors.combinedFactor,
+        invFlag: inputs.invFlag
+      });
+
+      const computed = {
+        MIL: ranges.MIL,
+        satFactor: factors.satFactor,
+        dzFactor: factors.dzFactor,
+        CF: ranges.combinedFactor || factors.combinedFactor || ranges.CF,
+        NR_Slope: ranges.NR_Slope,
+        NR_Int: ranges.NR_Int,
+        AR_Slope: ranges.AR_Slope,
+        AR_Int: ranges.AR_Int
+      };
+      renderComputed(computed);
+
+      const res = DetentCalculator.computeSeries({
+        abLoc: inputs.abLoc,
+        detentLoc: inputs.detentLoc,
+        satX: inputs.satX,
+        dz: inputs.dz,
+        invFlag: inputs.invFlag,
+      });
+
+      buildHorizontalMenu(res.series);
+      renderTable(res.series);
+      drawChart(res.series);
+    }
+
+    // handle resizes: redraw
+    window.addEventListener('resize', () => scheduleResizeAndRedraw(() => computeAndRender()));
+
+    computeBtn.addEventListener('click', computeAndRender);
+    [abEl, detEl, satEl, dzEl, invEl].forEach(i => i.addEventListener('change', () => computeAndRender()));
+    resetBtn.addEventListener('click', () => {
+      aircraftSelect.selectedIndex = 0;
+      applySelectedPreset();
+      detEl.value = 20; satEl.value = 90; dzEl.value = 0; invEl.checked = false;
+      computeAndRender();
+    });
+
+    // initial load
+    loadPresets().then(() => {
+      applySelectedPreset();
+      requestAnimationFrame(() => computeAndRender());
+    });
+  })();
+  </script>
+
+</body>
+</html>
