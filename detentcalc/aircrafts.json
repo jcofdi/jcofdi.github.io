@@ -1,17 +1,18 @@
 [
   { "name": "AH-64 Apache", "location": 12, "type": "Lockout" },
   { "name": "AJS37 Viggen", "location": 20, "type": "A/B" },
+  { "name": "F/A-18C Hornet", "location": 25, "type": "A/B" },
   { "name": "F-14A/B Tomcat", "location": 19, "type": "A/B" },
   { "name": "F-15C Eagle", "location": 19, "type": "A/B" },
   { "name": "F-15E Strike Eagle", "location": 24, "type": "A/B" },
   { "name": "F-16C Viper", "location": 24, "type": "A/B" },
-  { "name": "F/A-18C Hornet", "location": 25, "type": "A/B" },
+  { "name": "F-4E Phantom II", "location": 29, "type": "A/B" },
   { "name": "F-5E Tiger II", "location": 18, "type": "A/B" },
   { "name": "JF-17 Thunder", "location": 16, "type": "A/B" },
   { "name": "M-2000C", "location": 10, "type": "A/B" },
   { "name": "Mirage F1", "location": 41, "type": "A/B" },
   { "name": "MiG-21bis", "location": 8, "type": "A/B" },
-  { "name": "MiG-29 (FC)", "location": 38, "type": "A/B" },
+  { "name": "MiG-29 (FC & FF)", "location": 38, "type": "A/B" },
   { "name": "Mosquito FB VI", "location": 24, "type": "Engine Stops" },
   { "name": "Su-27 & -33 & J-11", "location": 24, "type": "A/B" }
 ]
