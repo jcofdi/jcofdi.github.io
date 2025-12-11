@@ -1,5 +1,4 @@
 [
-  { "name": "AH-64 Apache", "location": 12, "type": "Lockout" },
   { "name": "AJS37 Viggen", "location": 20, "type": "A/B" },
   { "name": "F/A-18C Hornet", "location": 25, "type": "A/B" },
   { "name": "F-14A/B Tomcat", "location": 19, "type": "A/B" },
@@ -13,6 +12,8 @@
   { "name": "Mirage F1", "location": 41, "type": "A/B" },
   { "name": "MiG-21bis", "location": 8, "type": "A/B" },
   { "name": "MiG-29 (FC & FF)", "location": 38, "type": "A/B" },
-  { "name": "Mosquito FB VI", "location": 24, "type": "Engine Stops" },
-  { "name": "Su-27 & -33 & J-11", "location": 24, "type": "A/B" }
+  { "name": "Su-27 & -33 & J-11", "location": 24, "type": "A/B" },
+  { "name": "AH-64 Apache", "location": 12, "type": "Lockout" },
+  { "name": "C-130J-30", "location": 39, "type": "Ground Idle/Reverse" },
+  { "name": "Mosquito FB VI", "location": 24, "type": "Engine Stops" }
 ]
