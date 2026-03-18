@@ -611,6 +611,12 @@ const luaOutput         = $('luaOutput');
 //  AIRCRAFT DROPDOWN
 // ==========================================================================
 function populateAircraftList() {
+  // Custom option first
+  const optCustom = document.createElement('option');
+  optCustom.value = 'custom';
+  optCustom.textContent = '-- Custom / Other --';
+  aircraftSelect.appendChild(optCustom);
+
   AIRCRAFT_LIST.sort((a, b) => a.display.localeCompare(b.display));
   AIRCRAFT_LIST.forEach((ac, i) => {
     const opt = document.createElement('option');
@@ -618,14 +624,8 @@ function populateAircraftList() {
     opt.textContent = ac.display + '  (' + ac.filename + ')';
     aircraftSelect.appendChild(opt);
   });
-  // Custom option
-  const optCustom = document.createElement('option');
-  optCustom.value = 'custom';
-  optCustom.textContent = '-- Custom / Other --';
-  aircraftSelect.appendChild(optCustom);
 
   if (AIRCRAFT_LIST.length === 0) {
-    // External file not loaded -- default to custom
     aircraftSelect.value = 'custom';
     const warn = document.createElement('div');
     warn.className = 'info-box';
