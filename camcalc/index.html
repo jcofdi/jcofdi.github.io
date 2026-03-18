@@ -554,13 +554,15 @@
     <label>Complete Lua Bookmark File</label>
     <div class="btn-row">
       <button class="btn-copy" id="copyLuaBtn">Copy Lua</button>
+      <button class="btn-copy" id="downloadLuaBtn">Download .lua</button>
+
     </div>
   </div>
   <div class="output-block" id="luaOutput"></div>
 </div>
 
 <footer>
-  DCS Camera Bookmark Calculator v2 &nbsp;|&nbsp; By JCofDI
+  DCS Camera Bookmark Calculator &nbsp;|&nbsp; By JCofDI
 </footer>
 
 <!-- ===================== SCRIPT ===================== -->
@@ -1148,6 +1150,24 @@ function makeCopyHandler(btn, getTextFn) {
 
 makeCopyHandler($('copyLuaBtn'), () => luaOutput.textContent);
 
+$('downloadLuaBtn').addEventListener('click', () => {
+  const text = luaOutput.textContent;
+  if (!text) return;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = getOutputFilename() + '.lua';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  const btn = $('downloadLuaBtn');
+  btn.textContent = 'Downloaded!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Download .lua'; btn.classList.remove('copied'); }, 1500);
+});
+  
 // ==========================================================================
 //  INIT
 // ==========================================================================
