@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DCS Camera Bookmark Calculator v2</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1a1a2e;
+      color: #c9d1d9;
+      min-height: 100vh;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    h1 {
+      text-align: center;
+      color: #58a6ff;
+      font-size: 1.5rem;
+      margin-bottom: 0.3rem;
+      letter-spacing: 0.04em;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #8b949e;
+      font-size: 0.82rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 1.2rem 1.4rem;
+      margin-bottom: 1rem;
+      max-width: 960px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .card h2 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #58a6ff;
+      margin-bottom: 0.9rem;
+      border-bottom: 1px solid #21262d;
+      padding-bottom: 0.45rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: #8b949e;
+      margin-bottom: 0.25rem;
+    }
+
+    label .hint { color: #484f58; }
+
+    textarea, input[type="text"], input[type="number"], select {
+      width: 100%;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 5px;
+      color: #e6edf3;
+      padding: 0.5rem 0.7rem;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    textarea:focus, input[type="text"]:focus, input[type="number"]:focus, select:focus {
+      border-color: #58a6ff;
+    }
+
+    textarea {
+      font-family: 'Courier New', Courier, monospace;
+      resize: vertical;
+    }
+
+    select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b949e'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.7rem center;
+      padding-right: 2rem;
+    }
+
+    .field-group { margin-bottom: 0.85rem; }
+
+    .row {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+    }
+
+    .row > .field-group { flex: 1; min-width: 140px; }
+    .row > .field-group.narrow { max-width: 120px; min-width: 80px; }
+    .row > .field-group.wide { flex: 2; min-width: 200px; }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 0;
+      max-width: 960px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 0.6rem 1rem;
+      background: #161b22;
+      color: #8b949e;
+      border: 1px solid #30363d;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .tab-btn:hover { background: #21262d; color: #c9d1d9; }
+
+    .tab-btn.active {
+      background: #0d1117;
+      color: #58a6ff;
+      border-color: #30363d;
+    }
+
+    .tab-content {
+      display: none;
+      max-width: 960px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .tab-content.active { display: block; }
+
+    .tab-card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      padding: 1.2rem 1.4rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Batch table */
+    .batch-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin-top: 0.5rem;
+    }
+
+    .batch-table th {
+      background: #161b22;
+      color: #8b949e;
+      font-weight: 600;
+      text-align: left;
+      padding: 0.45rem 0.6rem;
+      border: 1px solid #21262d;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .batch-table td {
+      padding: 0.35rem 0.5rem;
+      border: 1px solid #21262d;
+      vertical-align: middle;
+    }
+
+    .batch-table .row-num {
+      color: #484f58;
+      text-align: center;
+      width: 2rem;
+      font-size: 0.75rem;
+    }
+
+    .batch-table .cam-preview {
+      font-family: 'Courier New', Courier, monospace;
+      color: #7ee787;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
+    .batch-table input[type="text"],
+    .batch-table input[type="number"] {
+      padding: 0.3rem 0.5rem;
+      font-size: 0.8rem;
+      border-radius: 4px;
+    }
+
+    .batch-table .name-col { width: 160px; max-width: 160px; }
+    .batch-table .fov-col { width: 90px; min-width: 90px; }
+    .batch-table .aed-col { white-space: nowrap; }
+
+    .batch-table .status-ok { color: #7ee787; }
+    .batch-table .status-err { color: #ff7b72; }
+
+    .batch-table .remove-btn {
+      background: none;
+      border: none;
+      color: #484f58;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .batch-table .remove-btn:hover {
+      color: #ff7b72;
+      background: #3d1010;
+    }
+
+    /* Buttons */
+    .btn {
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: background 0.15s, transform 0.08s;
+      padding: 0.5rem 1rem;
+      border: 1px solid #30363d;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: #1f6feb;
+      color: #fff;
+      border-color: #1f6feb;
+    }
+
+    .btn-primary:hover { background: #388bfd; }
+
+    .btn-secondary {
+      background: #21262d;
+      color: #c9d1d9;
+    }
+
+    .btn-secondary:hover { background: #30363d; }
+
+    .btn-copy {
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      transition: background 0.15s, transform 0.08s;
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 0.35rem 0.8rem;
+    }
+
+    .btn-copy:active { transform: scale(0.97); }
+    .btn-copy:hover { background: #30363d; }
+
+    .btn-copy.copied {
+      background: #1f6feb;
+      color: #fff;
+      border-color: #1f6feb;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* Output */
+    .output-block {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 0.8rem 1rem;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.8rem;
+      color: #79c0ff;
+      white-space: pre;
+      overflow-x: auto;
+      margin-top: 0.5rem;
+      min-height: 3rem;
+      max-height: 500px;
+      overflow-y: auto;
+      tab-size: 4;
+      -moz-tab-size: 4;
+    }
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.8rem;
+      margin-bottom: 0;
+    }
+
+    .output-header label {
+      margin: 0;
+      font-size: 0.82rem;
+      color: #8b949e;
+    }
+
+    .filename-display {
+      font-family: 'Courier New', Courier, monospace;
+      color: #d2a8ff;
+      font-size: 0.82rem;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 0.3rem 0.6rem;
+      display: inline-block;
+      margin-top: 0.3rem;
+    }
+
+    .error-msg {
+      background: #3d1010;
+      border: 1px solid #8b2020;
+      border-radius: 6px;
+      color: #ff7b72;
+      padding: 0.5rem 0.8rem;
+      font-size: 0.82rem;
+      margin-top: 0.5rem;
+      display: none;
+    }
+
+    .error-msg.visible { display: block; }
+
+    .info-box {
+      background: #0c1929;
+      border: 1px solid #1f3a5f;
+      border-radius: 6px;
+      color: #8b949e;
+      padding: 0.5rem 0.8rem;
+      font-size: 0.78rem;
+      margin-top: 0.6rem;
+      line-height: 1.5;
+    }
+
+    .info-box code {
+      background: #21262d;
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+      color: #e6edf3;
+      font-size: 0.76rem;
+    }
+
+    .section-label {
+      font-size: 0.78rem;
+      color: #58a6ff;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+      margin-top: 0.8rem;
+      font-weight: 600;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #21262d;
+      margin: 1rem 0;
+    }
+
+    footer {
+      text-align: center;
+      color: #484f58;
+      font-size: 0.72rem;
+      margin-top: 1.5rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      .row > .field-group { min-width: 100%; }
+      .row > .field-group.narrow { max-width: 100%; }
+      .batch-table { font-size: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>DCS Camera Bookmark Calculator</h1>
+<p class="subtitle">
+  Convert world-space camera coordinates to object-local bookmarks.<br>
+  Supports batch processing, aircraft orientation, and manual spherical placement.
+</p>
+
+<!-- ===================== AIRCRAFT & SHARED SETTINGS ===================== -->
+<div class="card">
+  <h2>Aircraft &amp; Reference</h2>
+
+  <div class="row">
+    <div class="field-group wide">
+      <label for="aircraftSelect">Aircraft Type</label>
+      <select id="aircraftSelect"></select>
+    </div>
+    <div class="field-group" id="customNameGroup" style="display:none;">
+      <label for="customAircraftName">Custom Unit Name <span class="hint">(used in filename)</span></label>
+      <input type="text" id="customAircraftName" placeholder="e.g. MyUnit" />
+    </div>
+  </div>
+
+  <div class="filename-display" id="filenameDisplay">Config/View/Bookmarks/CameraObject/CamCalc.lua</div>
+
+  <hr class="divider">
+
+  <div class="field-group">
+    <label for="centerInput">Center Reference <span class="hint">(edge_pos from zeroed-out center bookmark, or aircraft world position via LShift+C)</span></label>
+    <textarea id="centerInput" rows="2" spellcheck="false"
+      placeholder="-camera -318.258629 0.019752 635.461071 -cameradir 0.999975 0.006949 -0.001353"></textarea>
+  </div>
+
+  <div class="section-label">Aircraft Orientation at Capture</div>
+  <div class="row">
+    <div class="field-group">
+      <label for="headingInput">Heading (deg)</label>
+      <input type="number" id="headingInput" value="0" step="1" />
+    </div>
+    <div class="field-group">
+      <label for="pitchInput">Pitch (deg)</label>
+      <input type="number" id="pitchInput" value="0" step="1" />
+    </div>
+    <div class="field-group">
+      <label for="bankInput">Bank (deg)</label>
+      <input type="number" id="bankInput" value="0" step="1" />
+    </div>
+    <div class="field-group narrow">
+      <label for="defaultFov">Default FOV</label>
+      <input type="number" id="defaultFov" value="54.4" min="1" max="170" step="0.1" />
+    </div>
+  </div>
+
+  <div class="info-box">
+    Heading/Pitch/Bank rotate world-space offsets into the aircraft's local frame.
+    Leave at 0 if the aircraft was stationary and level when you captured your center reference.
+    DCS info bar displays these as <code>HDG</code>, <code>PTH</code>, and <code>BNK</code> (rounded to whole degrees).
+  </div>
+</div>
+
+<!-- ===================== TABS ===================== -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="batch">Batch Convert</button>
+  <button class="tab-btn" data-tab="manual">Manual Placement</button>
+</div>
+
+<!-- ===================== BATCH TAB ===================== -->
+<div class="tab-content active" id="tab-batch">
+  <div class="tab-card">
+    <div class="field-group">
+      <label for="batchInput">Camera Positions <span class="hint">(paste one edge_pos string per line)</span></label>
+      <textarea id="batchInput" rows="5" spellcheck="false"
+        placeholder="Paste one or more lines, e.g.:
+-camera -318.260 0.021 635.463 -cameradir 0.995 -0.097 -0.036
+-camera -318.245 0.035 635.450 -cameradir 0.850 -0.174 -0.492"></textarea>
+    </div>
+
+    <button class="btn btn-primary" id="parseBatchBtn">Parse Lines</button>
+
+    <div id="batchTableWrap" style="display:none; margin-top:0.8rem; overflow-x:auto;">
+      <table class="batch-table" id="batchTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Bookmark Name</th>
+            <th>FOV</th>
+            <th>Local Offset (preview)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="batchBody"></tbody>
+      </table>
+    </div>
+
+    <div class="error-msg" id="batchError"></div>
+  </div>
+</div>
+
+<!-- ===================== MANUAL TAB ===================== -->
+<div class="tab-content" id="tab-manual">
+  <div class="tab-card">
+    <div class="info-box" style="margin-top:0; margin-bottom:0.8rem;">
+      Define a camera position using angle and distance from the aircraft center.
+      The camera will point toward the aircraft origin. Azimuth 0 = directly ahead, positive = left.
+      Elevation 0 = level, positive = up.
+    </div>
+
+    <div class="row">
+      <div class="field-group">
+        <label for="manAzimuth">Azimuth (deg) <span class="hint">0=ahead, +left</span></label>
+        <input type="number" id="manAzimuth" value="45" step="1" />
+      </div>
+      <div class="field-group">
+        <label for="manElevation">Elevation (deg) <span class="hint">0=level, +up</span></label>
+        <input type="number" id="manElevation" value="15" step="1" />
+      </div>
+      <div class="field-group">
+        <label for="manDistance">Distance (m)</label>
+        <input type="number" id="manDistance" value="20" min="0.1" step="0.5" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field-group wide">
+        <label for="manName">Bookmark Name</label>
+        <input type="text" id="manName" placeholder="e.g. left_quarter" />
+      </div>
+      <div class="field-group narrow">
+        <label for="manFov">FOV</label>
+        <input type="number" id="manFov" value="" min="1" max="170" step="0.1" placeholder="default" />
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="addManualBtn">Add to Table</button>
+      <span id="manualPreview" style="font-family:monospace; font-size:0.78rem; color:#7ee787;"></span>
+    </div>
+
+    <div class="error-msg" id="manualError"></div>
+
+    <div id="manualTableWrap" style="display:none; margin-top:0.8rem; overflow-x:auto;">
+      <table class="batch-table" id="manualTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Bookmark Name</th>
+            <th>FOV</th>
+            <th>Az / El / Dist</th>
+            <th>Local Offset (preview)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="manualBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== OUTPUT ===================== -->
+<div class="card" id="outputCard" style="display:none;">
+  <h2>Output</h2>
+
+  <div class="output-header">
+    <label>Complete Lua Bookmark File</label>
+    <div class="btn-row">
+      <button class="btn-copy" id="copyLuaBtn">Copy Lua</button>
+    </div>
+  </div>
+  <div class="output-block" id="luaOutput"></div>
+</div>
+
+<footer>
+  DCS Camera Bookmark Calculator v2 &nbsp;|&nbsp; By JCofDI
+</footer>
+
+<!-- ===================== SCRIPT ===================== -->
+<script>
+// ==========================================================================
+//  AIRCRAFT LIST -- Edit this array to add/remove aircraft.
+//  "display" = shown in dropdown.  "filename" = used in output path.
+//  DCS expects the filename to match the unit type exactly.
+// ==========================================================================
+const AIRCRAFT_LIST = [
+  { display: "A-10A",          filename: "A-10A" },
+  { display: "A-10C",          filename: "A-10C" },
+  { display: "A-10C II",       filename: "A-10C_2" },
+  { display: "AH-64D",         filename: "AH-64D_BLK_II" },
+  { display: "AV-8B N/A",      filename: "AV8BNA" },
+  { display: "C-101CC",        filename: "C-101CC" },
+  { display: "F-4E",           filename: "F-4E-45MC" },
+  { display: "F-5E",           filename: "F-5E-3" },
+  { display: "F-14A",          filename: "F-14A-135-GR" },
+  { display: "F-14B",          filename: "f-14b" },
+  { display: "F-15C",          filename: "F-15C" },
+  { display: "F-15E",          filename: "F-15ESE" },
+  { display: "F-16C",          filename: "F-16C_50" },
+  { display: "F/A-18C",        filename: "FA-18C_hornet" },
+  { display: "JF-17",          filename: "JF-17" },
+  { display: "Ka-50",          filename: "Ka-50" },
+  { display: "Ka-50 III",      filename: "Ka-50_3" },
+  { display: "M-2000C",        filename: "M-2000C" },
+  { display: "Mi-8",           filename: "Mi-8MT" },
+  { display: "Mi-24P",         filename: "Mi-24P" },
+  { display: "MiG-21bis",      filename: "MiG-21Bis" },
+  { display: "MiG-29A",        filename: "MiG-29A" },
+  { display: "MiG-29S",        filename: "MiG-29S" },
+  { display: "OH-58D",         filename: "OH58D" },
+  { display: "P-51D",          filename: "TF-51D" },
+  { display: "SA342 Gazelle",  filename: "SA342M" },
+  { display: "Su-25",          filename: "Su-25" },
+  { display: "Su-25T",         filename: "Su-25T" },
+  { display: "Su-27",          filename: "Su-27" },
+  { display: "Su-33",          filename: "Su-33" },
+  { display: "UH-1H",          filename: "UH-1H" },
+];
+
+// ==========================================================================
+//  STATE
+// ==========================================================================
+const DEFAULT_FOV = 54.4;
+let batchEntries = [];   // { raw, parsed, name, fov, error }
+let manualEntries = [];  // { azimuth, elevation, distance, name, fov, local }
+
+// ==========================================================================
+//  DOM REFERENCES
+// ==========================================================================
+const $ = id => document.getElementById(id);
+const aircraftSelect    = $('aircraftSelect');
+const customNameGroup   = $('customNameGroup');
+const customAircraftName= $('customAircraftName');
+const filenameDisplay   = $('filenameDisplay');
+const centerInput       = $('centerInput');
+const headingInput      = $('headingInput');
+const pitchInput        = $('pitchInput');
+const bankInput         = $('bankInput');
+const defaultFov        = $('defaultFov');
+const batchInput        = $('batchInput');
+const batchBody         = $('batchBody');
+const batchTableWrap    = $('batchTableWrap');
+const batchError        = $('batchError');
+const manualBody        = $('manualBody');
+const manualTableWrap   = $('manualTableWrap');
+const manualError       = $('manualError');
+const manualPreview     = $('manualPreview');
+const outputCard        = $('outputCard');
+const luaOutput         = $('luaOutput');
+
+// ==========================================================================
+//  AIRCRAFT DROPDOWN
+// ==========================================================================
+function populateAircraftList() {
+  AIRCRAFT_LIST.sort((a, b) => a.display.localeCompare(b.display));
+  AIRCRAFT_LIST.forEach((ac, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = ac.display + '  (' + ac.filename + ')';
+    aircraftSelect.appendChild(opt);
+  });
+  // Custom option
+  const optCustom = document.createElement('option');
+  optCustom.value = 'custom';
+  optCustom.textContent = '-- Custom / Other --';
+  aircraftSelect.appendChild(optCustom);
+
+  aircraftSelect.value = '0';
+}
+
+function getOutputFilename() {
+  if (aircraftSelect.value === 'custom') {
+    const name = customAircraftName.value.trim();
+    return name || 'CamCalc';
+  }
+  return AIRCRAFT_LIST[parseInt(aircraftSelect.value)].filename;
+}
+
+function updateFilenameDisplay() {
+  filenameDisplay.textContent = 'Config/View/Bookmarks/CameraObject/' + getOutputFilename() + '.lua';
+  customNameGroup.style.display = aircraftSelect.value === 'custom' ? '' : 'none';
+}
+
+aircraftSelect.addEventListener('change', () => { updateFilenameDisplay(); rebuildOutput(); });
+customAircraftName.addEventListener('input', () => { updateFilenameDisplay(); rebuildOutput(); });
+
+// ==========================================================================
+//  PARSING
+// ==========================================================================
+function parseEdgePos(raw) {
+  let s = raw.trim().replace(/^["']|["']$/g, '').trim();
+  const pattern = /-camera\s+([-\d.eE+]+)\s+([-\d.eE+]+)\s+([-\d.eE+]+)\s+-\s*cameradir\s+([-\d.eE+]+)\s+([-\d.eE+]+)\s+([-\d.eE+]+)/;
+  const m = s.match(pattern);
+  if (!m) throw new Error('Expected: -camera X Y Z -cameradir DX DY DZ');
+  const nums = m.slice(1).map(Number);
+  if (nums.some(isNaN)) throw new Error('Non-numeric value detected.');
+  return { x: nums[0], y: nums[1], z: nums[2], dx: nums[3], dy: nums[4], dz: nums[5] };
+}
+
+function fmt(n) { return n.toFixed(6); }
+
+// ==========================================================================
+//  ROTATION MATH
+//  DCS local frame: X = forward, Y = up, Z = right
+//  At H=0, P=0, B=0: local axes align with world axes
+//  Rotation order (local-to-world): Yaw(H) around Y, then Pitch(P) around Z, then Roll(B) around X
+//  We need world-to-local = transpose of local-to-world
+// ==========================================================================
+function deg2rad(d) { return d * Math.PI / 180; }
+
+function buildRotationMatrix(headingDeg, pitchDeg, bankDeg) {
+  const H = deg2rad(headingDeg);
+  const P = deg2rad(pitchDeg);
+  const B = deg2rad(bankDeg);
+
+  const cH = Math.cos(H), sH = Math.sin(H);
+  const cP = Math.cos(P), sP = Math.sin(P);
+  const cB = Math.cos(B), sB = Math.sin(B);
+
+  // Ry(H) * Rz(P) * Rx(B) -- local to world
+  // Ry(H):           Rz(P):           Rx(B):
+  // [ cH  0  sH]     [ cP -sP  0]     [1   0   0]
+  // [  0  1   0]     [ sP  cP  0]     [0  cB -sB]
+  // [-sH  0  cH]     [  0   0  1]     [0  sB  cB]
+
+  // R = Ry * Rz * Rx (multiply out)
+  // Row 0: [cH*cP, cH*sP*(-sB) + sH*(cB??)... ] -- let me just do it properly
+  // Actually let me multiply step by step.
+
+  // First: Rz * Rx
+  // [cP -sP  0]   [1   0   0]   [cP   -sP*cB   sP*sB]
+  // [sP  cP  0] * [0  cB -sB] = [sP    cP*cB  -cP*sB]
+  // [ 0   0  1]   [0  sB  cB]   [ 0    sB       cB   ]
+
+  // Then: Ry * (Rz*Rx)
+  // [cH  0  sH]   [cP   -sP*cB    sP*sB ]
+  // [ 0  1   0] * [sP    cP*cB   -cP*sB ]
+  // [-sH 0  cH]   [ 0    sB       cB    ]
+
+  // Row 0: [cH*cP + 0,   cH*(-sP*cB) + sH*sB,   cH*sP*sB + sH*cB]
+  // Row 1: [sP,           cP*cB,                  -cP*sB          ]
+  // Row 2: [-sH*cP + 0,  -sH*(-sP*cB) + cH*sB,  -sH*sP*sB + cH*cB]
+
+  const R = [
+    [ cH*cP,            -cH*sP*cB + sH*sB,    cH*sP*sB + sH*cB ],
+    [ sP,                cP*cB,               -cP*sB             ],
+    [-sH*cP,             sH*sP*cB + cH*sB,   -sH*sP*sB + cH*cB ]
+  ];
+
+  return R; // local-to-world
+}
+
+function transposeMatrix(R) {
+  return [
+    [R[0][0], R[1][0], R[2][0]],
+    [R[0][1], R[1][1], R[2][1]],
+    [R[0][2], R[1][2], R[2][2]]
+  ];
+}
+
+function matVecMul(M, v) {
+  return [
+    M[0][0]*v[0] + M[0][1]*v[1] + M[0][2]*v[2],
+    M[1][0]*v[0] + M[1][1]*v[1] + M[1][2]*v[2],
+    M[2][0]*v[0] + M[2][1]*v[1] + M[2][2]*v[2]
+  ];
+}
+
+function normalize3(v) {
+  const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+  if (len < 1e-12) return [0, 0, 0];
+  return [v[0]/len, v[1]/len, v[2]/len];
+}
+
+// Transform a world-space offset + direction into local space
+function worldToLocal(offsetWorld, dirWorld) {
+  const H = parseFloat(headingInput.value) || 0;
+  const P = parseFloat(pitchInput.value) || 0;
+  const B = parseFloat(bankInput.value) || 0;
+
+  const R_l2w = buildRotationMatrix(H, P, B);
+  const R_w2l = transposeMatrix(R_l2w);
+
+  const posLocal = matVecMul(R_w2l, offsetWorld);
+  const dirLocal = normalize3(matVecMul(R_w2l, dirWorld));
+
+  return { pos: posLocal, dir: dirLocal };
+}
+
+// ==========================================================================
+//  COMPUTE BOOKMARK from world-space center + camera
+// ==========================================================================
+function computeBookmark(center, cam) {
+  const offsetWorld = [cam.x - center.x, cam.y - center.y, cam.z - center.z];
+  const dirWorld = [cam.dx, cam.dy, cam.dz];
+  const local = worldToLocal(offsetWorld, dirWorld);
+  return {
+    x: local.pos[0], y: local.pos[1], z: local.pos[2],
+    dx: local.dir[0], dy: local.dir[1], dz: local.dir[2]
+  };
+}
+
+// ==========================================================================
+//  COMPUTE MANUAL (spherical) bookmark
+//  Azimuth: 0=ahead(+X), positive=left(-Z in local)
+//  Elevation: 0=level, positive=up(+Y)
+//  Distance: meters, converted to km for bookmark
+// ==========================================================================
+function computeManualBookmark(azDeg, elDeg, distM) {
+  const az = deg2rad(azDeg);
+  const el = deg2rad(elDeg);
+  const dKm = distM / 1000;
+
+  const x =  dKm * Math.cos(el) * Math.cos(az);
+  const y =  dKm * Math.sin(el);
+  const z = -dKm * Math.cos(el) * Math.sin(az);
+
+  // Direction: point back at origin (aircraft center)
+  const dx = -Math.cos(el) * Math.cos(az);
+  const dy = -Math.sin(el);
+  const dz =  Math.cos(el) * Math.sin(az);
+
+  return { x, y, z, dx, dy, dz };
+}
+
+// ==========================================================================
+//  BUILD LUA OUTPUT
+// ==========================================================================
+function buildCamString(bk) {
+  return `-camera ${fmt(bk.x)} ${fmt(bk.y)} ${fmt(bk.z)} -cameradir ${fmt(bk.dx)} ${fmt(bk.dy)} ${fmt(bk.dz)}`;
+}
+
+function escapeLuaString(s) {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '').replace(/\t/g, '\\t');
+}
+
+function buildFullLua(entries) {
+  // entries: [ { camStr, name, fov } ]
+  if (entries.length === 0) return '';
+
+  let lua = 'CameraBookmarks = {\n';
+  entries.forEach((e, i) => {
+    const fovVal = parseFloat(e.fov);
+    const fov = isNaN(fovVal) ? parseFloat(defaultFov.value) || DEFAULT_FOV : fovVal;
+    lua += `    [${i + 1}] = {\n`;
+    lua += `        ["edge_pos"] = "${e.camStr}",\n`;
+    lua += `        ["name"] = "${escapeLuaString(e.name || ('bookmark_' + (i + 1)))}",\n`;
+    lua += `        ["fov"] = ${fov},\n`;
+    lua += `    },\n`;
+  });
+  lua += '}';
+  return lua;
+}
+
+// ==========================================================================
+//  BATCH PROCESSING
+// ==========================================================================
+$('parseBatchBtn').addEventListener('click', parseBatchLines);
+
+function parseBatchLines() {
+  batchError.classList.remove('visible');
+  const raw = batchInput.value.trim();
+  if (!raw) {
+    batchError.textContent = 'No lines to parse.';
+    batchError.classList.add('visible');
+    return;
+  }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+  // Preserve existing names/fovs where possible
+  const oldNames = batchEntries.map(e => e.name);
+  const oldFovs = batchEntries.map(e => e.fov);
+
+  batchEntries = lines.map((line, i) => {
+    let parsed = null, error = null;
+    try { parsed = parseEdgePos(line); }
+    catch (e) { error = e.message; }
+    return {
+      raw: line,
+      parsed,
+      name: oldNames[i] || '',
+      fov: oldFovs[i] || '',
+      error
+    };
+  });
+
+  renderBatchTable();
+  rebuildOutput();
+}
+
+function renderBatchTable() {
+  if (batchEntries.length === 0) {
+    batchTableWrap.style.display = 'none';
+    return;
+  }
+  batchTableWrap.style.display = '';
+  batchBody.innerHTML = '';
+
+  let center = null;
+  try { center = parseEdgePos(centerInput.value); } catch(e) {}
+
+  batchEntries.forEach((entry, i) => {
+    const tr = document.createElement('tr');
+
+    // Row number
+    const tdNum = document.createElement('td');
+    tdNum.className = 'row-num';
+    tdNum.textContent = i + 1;
+    tr.appendChild(tdNum);
+
+    // Name
+    const tdName = document.createElement('td');
+    tdName.className = 'name-col';
+    const nameInp = document.createElement('input');
+    nameInp.type = 'text';
+    nameInp.value = entry.name;
+    nameInp.placeholder = 'bookmark_' + (i + 1);
+    nameInp.addEventListener('input', () => { entry.name = nameInp.value; rebuildOutput(); });
+    tdName.appendChild(nameInp);
+    tr.appendChild(tdName);
+
+    // FOV
+    const tdFov = document.createElement('td');
+    tdFov.className = 'fov-col';
+    const fovInp = document.createElement('input');
+    fovInp.type = 'number';
+    fovInp.value = entry.fov;
+    fovInp.placeholder = 'def';
+    fovInp.min = 1; fovInp.max = 170; fovInp.step = 0.1;
+    fovInp.addEventListener('input', () => { entry.fov = fovInp.value; rebuildOutput(); });
+    tdFov.appendChild(fovInp);
+    tr.appendChild(tdFov);
+
+    // Preview
+    const tdPrev = document.createElement('td');
+    tdPrev.className = 'cam-preview';
+    if (entry.error) {
+      tdPrev.innerHTML = '<span class="status-err">' + entry.error + '</span>';
+    } else if (center && entry.parsed) {
+      const bk = computeBookmark(center, entry.parsed);
+      tdPrev.textContent = fmt(bk.x) + ' ' + fmt(bk.y) + ' ' + fmt(bk.z);
+    } else {
+      tdPrev.innerHTML = '<span class="status-err">Set center reference</span>';
+    }
+    tr.appendChild(tdPrev);
+
+    // Remove
+    const tdRm = document.createElement('td');
+    const rmBtn = document.createElement('button');
+    rmBtn.className = 'remove-btn';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.title = 'Remove this entry';
+    rmBtn.addEventListener('click', () => { batchEntries.splice(i, 1); renderBatchTable(); rebuildOutput(); });
+    tdRm.appendChild(rmBtn);
+    tr.appendChild(tdRm);
+
+    batchBody.appendChild(tr);
+  });
+}
+
+// ==========================================================================
+//  MANUAL ENTRIES
+// ==========================================================================
+$('addManualBtn').addEventListener('click', addManualEntry);
+
+// Live preview on manual inputs
+['manAzimuth', 'manElevation', 'manDistance'].forEach(id => {
+  $(id).addEventListener('input', updateManualPreview);
+});
+
+function updateManualPreview() {
+  const az = parseFloat($('manAzimuth').value) || 0;
+  const el = parseFloat($('manElevation').value) || 0;
+  const dist = parseFloat($('manDistance').value) || 20;
+  const bk = computeManualBookmark(az, el, dist);
+  manualPreview.textContent = 'Local: ' + fmt(bk.x) + ', ' + fmt(bk.y) + ', ' + fmt(bk.z);
+}
+
+function addManualEntry() {
+  manualError.classList.remove('visible');
+
+  const az = parseFloat($('manAzimuth').value);
+  const el = parseFloat($('manElevation').value);
+  const dist = parseFloat($('manDistance').value);
+  const name = $('manName').value.trim();
+  const fov = $('manFov').value;
+
+  if (isNaN(az) || isNaN(el) || isNaN(dist) || dist <= 0) {
+    manualError.textContent = 'Azimuth, elevation, and a positive distance are required.';
+    manualError.classList.add('visible');
+    return;
+  }
+
+  const bk = computeManualBookmark(az, el, dist);
+
+  manualEntries.push({
+    azimuth: az, elevation: el, distance: dist,
+    name: name || ('manual_' + (manualEntries.length + 1)),
+    fov: fov,
+    local: bk
+  });
+
+  $('manName').value = '';
+  renderManualTable();
+  rebuildOutput();
+}
+
+function renderManualTable() {
+  if (manualEntries.length === 0) {
+    manualTableWrap.style.display = 'none';
+    return;
+  }
+  manualTableWrap.style.display = '';
+  manualBody.innerHTML = '';
+
+  manualEntries.forEach((entry, i) => {
+    const tr = document.createElement('tr');
+
+    // Row number
+    const tdNum = document.createElement('td');
+    tdNum.className = 'row-num';
+    tdNum.textContent = i + 1;
+    tr.appendChild(tdNum);
+
+    // Name (editable)
+    const tdName = document.createElement('td');
+    tdName.className = 'name-col';
+    const nameInp = document.createElement('input');
+    nameInp.type = 'text';
+    nameInp.value = entry.name;
+    nameInp.addEventListener('input', () => { entry.name = nameInp.value; rebuildOutput(); });
+    tdName.appendChild(nameInp);
+    tr.appendChild(tdName);
+
+    // FOV (editable)
+    const tdFov = document.createElement('td');
+    tdFov.className = 'fov-col';
+    const fovInp = document.createElement('input');
+    fovInp.type = 'number';
+    fovInp.value = entry.fov;
+    fovInp.placeholder = 'def';
+    fovInp.min = 1; fovInp.max = 170; fovInp.step = 0.1;
+    fovInp.addEventListener('input', () => { entry.fov = fovInp.value; rebuildOutput(); });
+    tdFov.appendChild(fovInp);
+    tr.appendChild(tdFov);
+
+    // Az/El/Dist
+    const tdAED = document.createElement('td');
+    tdAED.className = 'aed-col';
+    tdAED.style.fontSize = '0.75rem';
+    tdAED.style.color = '#d2a8ff';
+    tdAED.textContent = entry.azimuth + '\u00b0 / ' + entry.elevation + '\u00b0 / ' + entry.distance + 'm';
+    tr.appendChild(tdAED);
+
+    // Preview
+    const tdPrev = document.createElement('td');
+    tdPrev.className = 'cam-preview';
+    tdPrev.textContent = fmt(entry.local.x) + ' ' + fmt(entry.local.y) + ' ' + fmt(entry.local.z);
+    tr.appendChild(tdPrev);
+
+    // Remove
+    const tdRm = document.createElement('td');
+    const rmBtn = document.createElement('button');
+    rmBtn.className = 'remove-btn';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.title = 'Remove this entry';
+    rmBtn.addEventListener('click', () => { manualEntries.splice(i, 1); renderManualTable(); rebuildOutput(); });
+    tdRm.appendChild(rmBtn);
+    tr.appendChild(tdRm);
+
+    manualBody.appendChild(tr);
+  });
+}
+
+// ==========================================================================
+//  REBUILD OUTPUT
+// ==========================================================================
+function rebuildOutput() {
+  const allEntries = [];
+  let center = null;
+  try { center = parseEdgePos(centerInput.value); } catch(e) {}
+
+  // Collect batch entries
+  batchEntries.forEach((entry, i) => {
+    if (entry.parsed && center) {
+      const bk = computeBookmark(center, entry.parsed);
+      allEntries.push({
+        camStr: buildCamString(bk),
+        name: entry.name || ('bookmark_' + (i + 1)),
+        fov: entry.fov
+      });
+    }
+  });
+
+  // Collect manual entries
+  manualEntries.forEach((entry, i) => {
+    allEntries.push({
+      camStr: buildCamString(entry.local),
+      name: entry.name || ('manual_' + (i + 1)),
+      fov: entry.fov
+    });
+  });
+
+  if (allEntries.length === 0) {
+    outputCard.style.display = 'none';
+    return;
+  }
+
+  const lua = buildFullLua(allEntries);
+  luaOutput.textContent = lua;
+  outputCard.style.display = '';
+}
+
+// Recalculate when shared inputs change
+[centerInput, headingInput, pitchInput, bankInput, defaultFov].forEach(el => {
+  el.addEventListener('input', () => {
+    renderBatchTable();
+    rebuildOutput();
+  });
+});
+
+// ==========================================================================
+//  TABS
+// ==========================================================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    $('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ==========================================================================
+//  COPY HANDLER
+// ==========================================================================
+function makeCopyHandler(btn, getTextFn) {
+  btn.addEventListener('click', () => {
+    const text = getTextFn();
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy Lua'; btn.classList.remove('copied'); }, 1500);
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy Lua'; btn.classList.remove('copied'); }, 1500);
+    });
+  });
+}
+
+makeCopyHandler($('copyLuaBtn'), () => luaOutput.textContent);
+
+// ==========================================================================
+//  INIT
+// ==========================================================================
+populateAircraftList();
+updateFilenameDisplay();
+updateManualPreview();
+</script>
+</body>
+</html>
