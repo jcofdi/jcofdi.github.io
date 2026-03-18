@@ -555,56 +555,26 @@
     <div class="btn-row">
       <button class="btn-copy" id="copyLuaBtn">Copy Lua</button>
       <button class="btn-copy" id="downloadLuaBtn">Download .lua</button>
-
     </div>
   </div>
   <div class="output-block" id="luaOutput"></div>
 </div>
 
 <footer>
-  DCS Camera Bookmark Calculator &nbsp;|&nbsp; By JCofDI
+  DCS Camera Bookmark Calculator v2 &nbsp;|&nbsp; By JCofDI
 </footer>
 
 <!-- ===================== SCRIPT ===================== -->
+<script src="aircraft_list.js"></script>
 <script>
 // ==========================================================================
-//  AIRCRAFT LIST -- Edit this array to add/remove aircraft.
-//  "display" = shown in dropdown.  "filename" = used in output path.
-//  DCS expects the filename to match the unit type exactly.
+//  AIRCRAFT LIST -- loaded from aircraft_list.js
+//  If the external file is missing, AIRCRAFT_DATA will be undefined
+//  and the dropdown will only show the Custom option.
 // ==========================================================================
-const AIRCRAFT_LIST = [
-  { display: "A-10A",          filename: "A-10A" },
-  { display: "A-10C",          filename: "A-10C" },
-  { display: "A-10C II",       filename: "A-10C_2" },
-  { display: "AH-64D",         filename: "AH-64D_BLK_II" },
-  { display: "AV-8B N/A",      filename: "AV8BNA" },
-  { display: "C-101CC",        filename: "C-101CC" },
-  { display: "F-4E",           filename: "F-4E-45MC" },
-  { display: "F-5E",           filename: "F-5E-3" },
-  { display: "F-14A",          filename: "F-14A-135-GR" },
-  { display: "F-14B",          filename: "f-14b" },
-  { display: "F-15C",          filename: "F-15C" },
-  { display: "F-15E",          filename: "F-15ESE" },
-  { display: "F-16C",          filename: "F-16C_50" },
-  { display: "F/A-18C",        filename: "FA-18C_hornet" },
-  { display: "JF-17",          filename: "JF-17" },
-  { display: "Ka-50",          filename: "Ka-50" },
-  { display: "Ka-50 III",      filename: "Ka-50_3" },
-  { display: "M-2000C",        filename: "M-2000C" },
-  { display: "Mi-8",           filename: "Mi-8MT" },
-  { display: "Mi-24P",         filename: "Mi-24P" },
-  { display: "MiG-21bis",      filename: "MiG-21Bis" },
-  { display: "MiG-29A",        filename: "MiG-29A" },
-  { display: "MiG-29S",        filename: "MiG-29S" },
-  { display: "OH-58D",         filename: "OH58D" },
-  { display: "P-51D",          filename: "TF-51D" },
-  { display: "SA342 Gazelle",  filename: "SA342M" },
-  { display: "Su-25",          filename: "Su-25" },
-  { display: "Su-25T",         filename: "Su-25T" },
-  { display: "Su-27",          filename: "Su-27" },
-  { display: "Su-33",          filename: "Su-33" },
-  { display: "UH-1H",          filename: "UH-1H" },
-];
+const AIRCRAFT_LIST = (typeof AIRCRAFT_DATA !== 'undefined')
+  ? AIRCRAFT_DATA.map(([display, filename]) => ({ display, filename }))
+  : [];
 
 // ==========================================================================
 //  STATE
@@ -654,7 +624,16 @@ function populateAircraftList() {
   optCustom.textContent = '-- Custom / Other --';
   aircraftSelect.appendChild(optCustom);
 
-  aircraftSelect.value = '0';
+  if (AIRCRAFT_LIST.length === 0) {
+    // External file not loaded -- default to custom
+    aircraftSelect.value = 'custom';
+    const warn = document.createElement('div');
+    warn.className = 'info-box';
+    warn.innerHTML = 'Aircraft list not loaded. Place <code>aircraft_list.js</code> in the same folder as this HTML file.';
+    aircraftSelect.parentElement.appendChild(warn);
+  } else {
+    aircraftSelect.value = '0';
+  }
 }
 
 function getOutputFilename() {
@@ -1167,7 +1146,7 @@ $('downloadLuaBtn').addEventListener('click', () => {
   btn.classList.add('copied');
   setTimeout(() => { btn.textContent = 'Download .lua'; btn.classList.remove('copied'); }, 1500);
 });
-  
+
 // ==========================================================================
 //  INIT
 // ==========================================================================
