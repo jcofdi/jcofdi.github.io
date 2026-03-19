@@ -704,10 +704,18 @@ function escapeLuaString(s) {
 
 function buildFullLua(entries) {
   if (!entries.length) return '';
+  const defFov = parseFloat(defaultFov.value) || DEFAULT_FOV;
   let lua = 'CameraBookmarks = {\n';
+  // Center reference bookmark (always first)
+  lua += '    [1] = {\n';
+  lua += '        ["edge_pos"] = "-camera 0.000000 0.000000 0.000000 -cameradir 0.000000 0.000000 0.000000",\n';
+  lua += '        ["name"] = "CC 0",\n';
+  lua += `        ["fov"] = ${defFov},\n`;
+  lua += '    },\n';
+  // User entries follow
   entries.forEach((e, i) => {
-    const fov = parseFloat(e.fov) || parseFloat(defaultFov.value) || DEFAULT_FOV;
-    lua += `    [${i+1}] = {\n`;
+    const fov = parseFloat(e.fov) || defFov;
+    lua += `    [${i+2}] = {\n`;
     lua += `        ["edge_pos"] = "${e.camStr}",\n`;
     lua += `        ["name"] = "${escapeLuaString(e.name||('bookmark_'+(i+1)))}",\n`;
     lua += `        ["fov"] = ${fov},\n`;
