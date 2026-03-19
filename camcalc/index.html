@@ -455,7 +455,8 @@
       Body pitch is computed internally as PTH + AOA since PTH is flight-path-relative,
       not body-relative.<br><br>
       Stationary, level captures produce the most accurate results.
-      Manuevering flight captures carry errors from info bar rounding, and other unsurfaced values such as sideslip.
+      In-flight captures carry small inherent errors from info bar rounding,
+      unobservable sideslip, and transient state changes between reading values and capturing coordinates.
     </div>
 
     <hr class="divider">
@@ -655,15 +656,12 @@ function buildRotationMatrix(headingDeg, pitchDeg, bankDeg) {
   const cH = Math.cos(H), sH = Math.sin(H);
   const cP = Math.cos(P), sP = Math.sin(P);
   const cB = Math.cos(B), sB = Math.sin(B);
+  // R = Ry(H) * Rz(P) * Rx(B) -- world to local
   return [
-    [ cH*cP,   -cH*sP*cB + sH*sB,   cH*sP*sB + sH*cB ],
-    [ sP,       cP*cB,              -cP*sB              ],
-    [-sH*cP,    sH*sP*cB + cH*sB,  -sH*sP*sB + cH*cB  ]
+    [ cH*cP,  -cH*sP*cB + sH*sB,   cH*sP*sB + sH*cB ],
+    [ sP,      cP*cB,              -cP*sB              ],
+    [-sH*cP,   sH*sP*cB + cH*sB,  -sH*sP*sB + cH*cB  ]
   ];
-}
-
-function transposeMatrix(R) {
-  return [[R[0][0],R[1][0],R[2][0]],[R[0][1],R[1][1],R[2][1]],[R[0][2],R[1][2],R[2][2]]];
 }
 
 function matVecMul(M, v) {
@@ -679,8 +677,8 @@ function worldToLocal(offsetWorld, dirWorld) {
   const H = parseFloat(headingInput.value)||0;
   const P = (parseFloat(pitchInput.value)||0) + (parseFloat(aoaInput.value)||0); // body pitch = PTH + AOA
   const B = parseFloat(bankInput.value)||0;
-  const R_w2l = transposeMatrix(buildRotationMatrix(H, P, B));
-  return { pos: matVecMul(R_w2l, offsetWorld), dir: normalize3(matVecMul(R_w2l, dirWorld)) };
+  const R = buildRotationMatrix(H, P, B);
+  return { pos: matVecMul(R, offsetWorld), dir: normalize3(matVecMul(R, dirWorld)) };
 }
 
 function computeBookmark(center, cam) {
