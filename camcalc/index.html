@@ -438,15 +438,25 @@
         <input type="number" id="pitchInput" value="0" step="1" />
       </div>
       <div class="field-group">
+        <label for="aoaInput">AOA (deg)</label>
+        <input type="number" id="aoaInput" value="0" step="0.1" />
+      </div>
+      <div class="field-group">
         <label for="bankInput">Bank (deg)</label>
         <input type="number" id="bankInput" value="0" step="1" />
       </div>
     </div>
 
     <div class="info-box">
-      Heading/Pitch/Bank rotate world-space offsets into the aircraft's local frame.
-      Leave at 0 if the aircraft was stationary and level when you captured your center reference.
-      DCS info bar displays these as <code>HDG</code>, <code>PTH</code>, and <code>BNK</code> (rounded to whole degrees).
+      These values rotate world-space offsets into the aircraft's body frame.
+      Leave all at 0 if the aircraft was stationary and level at capture.<br><br>
+      From the DCS info bar: use the <strong>true</strong> (second) value from <code>HDG</code>,
+      not the magnetic value. Enter <code>PTH</code>, <code>BNK</code>, and <code>AOA</code> as shown.
+      Body pitch is computed internally as PTH + AOA since PTH is flight-path-relative,
+      not body-relative.<br><br>
+      Stationary, level captures produce the most accurate results.
+      In-flight captures carry small inherent errors from info bar rounding,
+      unobservable sideslip, and transient state changes between reading values and capturing coordinates.
     </div>
 
     <hr class="divider">
@@ -576,6 +586,7 @@ const filenameDisplay   = $('filenameDisplay');
 const centerInput       = $('centerInput');
 const headingInput      = $('headingInput');
 const pitchInput        = $('pitchInput');
+const aoaInput          = $('aoaInput');
 const bankInput         = $('bankInput');
 const defaultFov        = $('defaultFov');
 const batchInput        = $('batchInput');
@@ -666,7 +677,9 @@ function normalize3(v) {
 }
 
 function worldToLocal(offsetWorld, dirWorld) {
-  const H = parseFloat(headingInput.value)||0, P = parseFloat(pitchInput.value)||0, B = parseFloat(bankInput.value)||0;
+  const H = parseFloat(headingInput.value)||0;
+  const P = (parseFloat(pitchInput.value)||0) + (parseFloat(aoaInput.value)||0); // body pitch = PTH + AOA
+  const B = parseFloat(bankInput.value)||0;
   const R_w2l = transposeMatrix(buildRotationMatrix(H, P, B));
   return { pos: matVecMul(R_w2l, offsetWorld), dir: normalize3(matVecMul(R_w2l, dirWorld)) };
 }
@@ -858,7 +871,7 @@ function rebuildOutput() {
   outputCard.style.display = '';
 }
 
-[centerInput, headingInput, pitchInput, bankInput, defaultFov].forEach(el => {
+[centerInput, headingInput, pitchInput, aoaInput, bankInput, defaultFov].forEach(el => {
   el.addEventListener('input', () => { renderBatchTable(); rebuildOutput(); });
 });
 
