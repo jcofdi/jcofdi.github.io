@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DCS Camera Bookmark Calculator v2</title>
+  <title>DCS Camera Bookmark Calculator</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -400,7 +400,7 @@
       <select id="aircraftSelect"></select>
     </div>
     <div class="field-group" id="customNameGroup" style="display:none;">
-      <label for="customAircraftName">Custom Unit Name <span class="hint">(used in filename)</span></label>
+      <label for="customAircraftName">Custom Unit Filename</label>
       <input type="text" id="customAircraftName" placeholder="e.g. MyUnit" />
     </div>
     <div class="field-group narrow">
@@ -422,7 +422,7 @@
   <div class="tab-card">
 
     <div class="field-group">
-      <label for="centerInput">Center Reference <span class="hint">(edge_pos from zeroed-out center bookmark, or aircraft world position via LShift+C)</span></label>
+      <label for="centerInput">Center Reference <span class="hint">(Camera to Clipboard from right-click menu)</span></label>
       <textarea id="centerInput" rows="2" spellcheck="false"
         placeholder="-camera -318.258629 0.019752 635.461071 -cameradir 0.999975 0.006949 -0.001353"></textarea>
     </div>
@@ -448,15 +448,11 @@
     </div>
 
     <div class="info-box">
-      These values rotate world-space offsets into the aircraft's body frame.
-      Leave all at 0 if the aircraft was stationary and level at capture.<br><br>
+      These values rotate world-space offsets into the aircraft's body frame.<br><br>
       From the DCS info bar: use the <strong>true</strong> (second) value from <code>HDG</code>,
-      not the magnetic value. Enter <code>PTH</code>, <code>BNK</code>, and <code>AOA</code> as shown.
-      Body pitch is computed internally as PTH + AOA since PTH is flight-path-relative,
-      not body-relative.<br><br>
-      Stationary, level captures produce the most accurate results.
-      In-flight captures carry small inherent errors from info bar rounding,
-      unobservable sideslip, and transient state changes between reading values and capturing coordinates.
+      not magnetic. Enter <code>PTH</code>, <code>AOA</code>, and <code>BNK</code> as shown.<br><br>
+      Stationary, level captures produce the most accurate results due to rounding and
+	  unsurfaced values such as yaw.
     </div>
 
     <hr class="divider">
@@ -551,7 +547,7 @@
 </div>
 
 <!-- ===================== OUTPUT ===================== -->
-<div class="card" id="outputCard" style="display:none;">
+<div class="card" id="outputCard">
   <h2>Output</h2>
   <div class="output-header">
     <label>Complete Lua Bookmark File</label>
@@ -564,7 +560,7 @@
 </div>
 
 <footer>
-  DCS Camera Bookmark Calculator v2 &nbsp;|&nbsp; By JCofDI
+  DCS Camera Bookmark Calculator &nbsp;|&nbsp; By JCofDI
 </footer>
 
 <!-- ===================== SCRIPT ===================== -->
@@ -703,7 +699,6 @@ function escapeLuaString(s) {
 }
 
 function buildFullLua(entries) {
-  if (!entries.length) return '';
   const defFov = parseFloat(defaultFov.value) || DEFAULT_FOV;
   let lua = 'CameraBookmarks = {\n';
   // Center reference bookmark (always first)
@@ -871,9 +866,8 @@ function rebuildOutput() {
     allEntries.push({ camStr: buildCamString(entry.local), name: entry.name||('manual_'+(i+1)), fov: entry.fov });
   });
 
-  if (!allEntries.length) { outputCard.style.display = 'none'; return; }
+  if (!allEntries.length) { luaOutput.textContent = buildFullLua([]); return; }
   luaOutput.textContent = buildFullLua(allEntries);
-  outputCard.style.display = '';
 }
 
 [centerInput, headingInput, pitchInput, aoaInput, bankInput, defaultFov].forEach(el => {
@@ -924,6 +918,7 @@ $('downloadLuaBtn').addEventListener('click', () => {
 populateAircraftList();
 updateFilenameDisplay();
 updateManualPreview();
+rebuildOutput();
 </script>
 </body>
 </html>
