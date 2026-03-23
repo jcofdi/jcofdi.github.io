@@ -671,7 +671,7 @@ function normalize3(v) {
 
 function worldToLocal(offsetWorld, dirWorld) {
   const H = parseFloat(headingInput.value)||0;
-  const P = (parseFloat(pitchInput.value)||0) + (parseFloat(aoaInput.value)||0); // body pitch = PTH + AOA
+  const P = -(parseFloat(pitchInput.value)||0) + (parseFloat(aoaInput.value)||0); // body pitch = -PTH + AOA
   const B = parseFloat(bankInput.value)||0;
   const R = buildRotationMatrix(H, P, B);
   return { pos: matVecMul(R, offsetWorld), dir: normalize3(matVecMul(R, dirWorld)) };
