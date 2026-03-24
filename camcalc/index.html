@@ -438,10 +438,6 @@
         <input type="number" id="pitchInput" value="0" step="1" />
       </div>
       <div class="field-group">
-        <label for="aoaInput">AOA (deg)</label>
-        <input type="number" id="aoaInput" value="0" step="0.1" />
-      </div>
-      <div class="field-group">
         <label for="bankInput">Bank (deg)</label>
         <input type="number" id="bankInput" value="0" step="1" />
       </div>
@@ -450,7 +446,7 @@
     <div class="info-box">
       These values rotate world-space offsets into the aircraft's body frame.<br><br>
       From the DCS info bar: use the <strong>true</strong> (second) value from <code>HDG</code>,
-      not magnetic. Enter <code>PTH</code>, <code>AOA</code>, and <code>BNK</code> as shown.<br><br>
+      not magnetic. Enter <code>PTH</code> and <code>BNK</code> as shown.<br><br>
       Stationary, level captures produce the most accurate results due to rounding and
 	  unsurfaced values such as yaw.
     </div>
@@ -582,7 +578,6 @@ const filenameDisplay   = $('filenameDisplay');
 const centerInput       = $('centerInput');
 const headingInput      = $('headingInput');
 const pitchInput        = $('pitchInput');
-const aoaInput          = $('aoaInput');
 const bankInput         = $('bankInput');
 const defaultFov        = $('defaultFov');
 const batchInput        = $('batchInput');
@@ -652,11 +647,11 @@ function buildRotationMatrix(headingDeg, pitchDeg, bankDeg) {
   const cH = Math.cos(H), sH = Math.sin(H);
   const cP = Math.cos(P), sP = Math.sin(P);
   const cB = Math.cos(B), sB = Math.sin(B);
-  // R = Ry(H) * Rz(P) * Rx(B) -- world to local
+  // R = Rx(-B) * Rz(-P) * Ry(H) -- world to local, applied directly
   return [
-    [ cH*cP,  -cH*sP*cB + sH*sB,   cH*sP*sB + sH*cB ],
-    [ sP,      cP*cB,              -cP*sB              ],
-    [-sH*cP,   sH*sP*cB + cH*sB,  -sH*sP*sB + cH*cB  ]
+    [ cP*cH,                  sP,             cP*sH               ],
+    [-cB*sP*cH - sB*sH,       cB*cP,         -cB*sP*sH + sB*cH   ],
+    [ sB*sP*cH - cB*sH,      -sB*cP,          sB*sP*sH + cB*cH   ]
   ];
 }
 
@@ -671,7 +666,7 @@ function normalize3(v) {
 
 function worldToLocal(offsetWorld, dirWorld) {
   const H = parseFloat(headingInput.value)||0;
-  const P = -(parseFloat(pitchInput.value)||0) + (parseFloat(aoaInput.value)||0); // body pitch = -PTH + AOA
+  const P = parseFloat(pitchInput.value)||0;
   const B = parseFloat(bankInput.value)||0;
   const R = buildRotationMatrix(H, P, B);
   return { pos: matVecMul(R, offsetWorld), dir: normalize3(matVecMul(R, dirWorld)) };
@@ -870,7 +865,7 @@ function rebuildOutput() {
   luaOutput.textContent = buildFullLua(allEntries);
 }
 
-[centerInput, headingInput, pitchInput, aoaInput, bankInput, defaultFov].forEach(el => {
+[centerInput, headingInput, pitchInput, bankInput, defaultFov].forEach(el => {
   el.addEventListener('input', () => { renderBatchTable(); rebuildOutput(); });
 });
 
