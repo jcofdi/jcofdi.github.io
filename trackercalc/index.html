@@ -1,1 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrackCalc — Head Tracking Deflection Calculator</title>
+  <style>
+    :root {
+      --bg:        #111215;
+      --surface:   #1a1b1f;
+      --border:    #2a2c32;
+      --text:      #d4d4d8;
+      --text-dim:  #71717a;
+      --accent:    #60a5fa;
+      --accent-dim:#2563eb;
+      --output-bg: #0f1923;
+      --output-border: #1e3a5f;
+      --pitch-color: #f59e0b;
+      --mono:      'IBM Plex Mono', 'Consolas', monospace;
+      --sans:      'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    }
 
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 3rem;
+    }
+
+    h1 {
+      font-family: var(--mono);
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.35rem;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    section h2 {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .field {
+      margin-bottom: 0.85rem;
+    }
+    .field:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 0.25rem;
+    }
+
+    input[type="number"] {
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.45rem 0.6rem;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+
+    input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    input[type="number"]::-webkit-inner-spin-button { opacity: 0.3; }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.4rem;
+    }
+
+    .preset {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      background: var(--bg);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .preset:hover {
+      border-color: var(--accent-dim);
+      color: var(--text);
+    }
+
+    .preset.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(96, 165, 250, 0.08);
+    }
+
+    .derived {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      padding: 0.65rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+    }
+
+    .derived .d-label {
+      color: var(--text-dim);
+      font-size: 0.7rem;
+    }
+
+    .derived .d-value {
+      color: var(--text);
+    }
+
+    .output-section {
+      background: var(--output-bg);
+      border-color: var(--output-border);
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .result-card {
+      text-align: center;
+      padding: 1rem 0.5rem;
+      background: rgba(96, 165, 250, 0.04);
+      border: 1px solid var(--output-border);
+      border-radius: 4px;
+    }
+
+    .result-card.pitch-card {
+      background: rgba(245, 158, 11, 0.04);
+    }
+
+    .result-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 0.3rem;
+    }
+
+    .result-value {
+      font-family: var(--mono);
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .result-card.pitch-card .result-value {
+      color: var(--pitch-color);
+    }
+
+    .result-unit {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.15rem;
+    }
+
+    .diagram {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .diagram svg {
+      width: 100%;
+      max-width: 460px;
+      height: auto;
+    }
+
+    .help {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+      margin-top: 0.5rem;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-top: 1rem;
+      font-family: var(--mono);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    @media (max-width: 480px) {
+      .container { padding: 1.5rem 1rem 2rem; }
+      h1 { font-size: 1.15rem; }
+      .result-value { font-size: 1.3rem; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="container">
+
+  <h1>TrackCalc</h1>
+  <p class="subtitle">
+    Maximum yaw &amp; pitch deflection for head-tracking software.
+    <br>Computes the angle from monitor center to edge based on your setup geometry.
+  </p>
+
+  <section>
+    <h2>Monitor</h2>
+
+    <div class="field">
+      <label>Diagonal Size (in)</label>
+      <input type="number" id="diagIn" value="27" min="1" step="0.1" oninput="calc()">
+    </div>
+
+    <div class="field">
+      <label>Resolution Preset</label>
+      <div class="presets" id="presetContainer">
+        <button class="preset" data-w="1920" data-h="1080" onclick="applyPreset(this)">1080p</button>
+        <button class="preset" data-w="2560" data-h="1080" onclick="applyPreset(this)">UW 1080p</button>
+        <button class="preset active" data-w="2560" data-h="1440" onclick="applyPreset(this)">1440p</button>
+        <button class="preset" data-w="3440" data-h="1440" onclick="applyPreset(this)">UW 1440p</button>
+        <button class="preset" data-w="3840" data-h="2160" onclick="applyPreset(this)">4K</button>
+        <button class="preset" data-w="5120" data-h="2160" onclick="applyPreset(this)">UW 4K</button>
+        <button class="preset" data-w="5120" data-h="1440" onclick="applyPreset(this)">Super UW</button>
+      </div>
+    </div>
+
+    <div class="row-2">
+      <div class="field">
+        <label>Width (px)</label>
+        <input type="number" id="resW" value="2560" min="1" step="1" oninput="onManualRes(); calc()">
+      </div>
+      <div class="field">
+        <label>Height (px)</label>
+        <input type="number" id="resH" value="1440" min="1" step="1" oninput="onManualRes(); calc()">
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Seating</h2>
+    <div class="field">
+      <label>Distance to Monitor (in)</label>
+      <input type="number" id="distIn" value="36" min="1" step="0.5" oninput="calc()">
+    </div>
+  </section>
+
+  <section>
+    <h2>Derived Dimensions</h2>
+    <div class="derived">
+      <div>
+        <div class="d-label">Aspect Ratio</div>
+        <div class="d-value" id="arDisplay">16 : 9</div>
+      </div>
+      <div>
+        <div class="d-label">Monitor W × H</div>
+        <div class="d-value" id="physDisplay">23.5 × 13.2 in</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="output-section">
+    <h2>Maximum Deflection</h2>
+    <div class="result-grid">
+      <div class="result-card">
+        <div class="result-label">Yaw (horizontal)</div>
+        <div class="result-value" id="yawVal">18.1</div>
+        <div class="result-unit">deg ±</div>
+      </div>
+      <div class="result-card pitch-card">
+        <div class="result-label">Pitch (vertical)</div>
+        <div class="result-value" id="pitchVal">10.4</div>
+        <div class="result-unit">deg ±</div>
+      </div>
+    </div>
+
+    <div class="diagram" id="diagramBox"></div>
+
+    <p class="help">
+      These are the maximum angles from dead-center to monitor edge.
+      Use as a starting ceiling for your tracking curve endpoints&mdash;
+      anything beyond these values pushes your viewpoint past the physical screen.
+    </p>
+  </section>
+
+  <footer>
+    TrackCalc | By JCofDI
+  </footer>
+</div>
+
+<script>
+  // ============ PRESETS ============
+  function applyPreset(btn) {
+    document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('resW').value = btn.dataset.w;
+    document.getElementById('resH').value = btn.dataset.h;
+    calc();
+  }
+
+  function onManualRes() {
+    document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+  }
+
+  // ============ MATH ============
+  function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+  function round(v, d) { const f = Math.pow(10, d); return Math.round(v * f) / f; }
+
+  function calc() {
+    const diag = parseFloat(document.getElementById('diagIn').value) || 0;
+    const dist = parseFloat(document.getElementById('distIn').value) || 0;
+    const resW = parseInt(document.getElementById('resW').value) || 1;
+    const resH = parseInt(document.getElementById('resH').value) || 1;
+
+    // aspect ratio
+    const g = gcd(resW, resH);
+    const arW = resW / g;
+    const arH = resH / g;
+    document.getElementById('arDisplay').textContent = arW + ' : ' + arH;
+
+    // physical dimensions (inches)
+    const hypAR = Math.sqrt(arW * arW + arH * arH);
+    const monW = diag * (arW / hypAR);
+    const monH = diag * (arH / hypAR);
+
+    document.getElementById('physDisplay').textContent =
+      round(monW, 1) + ' \u00d7 ' + round(monH, 1) + ' in';
+
+    // deflection angles
+    let yaw = 0, pitch = 0;
+    if (dist > 0) {
+      yaw   = Math.atan((monW / 2) / dist) * (180 / Math.PI);
+      pitch = Math.atan((monH / 2) / dist) * (180 / Math.PI);
+    }
+
+    document.getElementById('yawVal').textContent  = round(yaw, 1);
+    document.getElementById('pitchVal').textContent = round(pitch, 1);
+
+    drawDiagram(monW, monH, dist, yaw, pitch);
+  }
+
+  // ============ 3-D DIAGRAM ============
+  // Oblique projection: head at bottom-left, monitor at upper-right.
+  // Depth axis runs diagonally so yaw fans right and pitch fans up.
+
+  function drawDiagram(monW, monH, dist, yaw, pitch) {
+    const box = document.getElementById('diagramBox');
+    if (dist <= 0 || monW <= 0) { box.innerHTML = ''; return; }
+
+    const svgW = 460, svgH = 280;
+
+    // 3-D coords: X = right, Y = up, Z = depth toward monitor
+    const hw = monW / 2, hh = monH / 2;
+
+    const head  = [0, 0, 0];
+    const monTL = [-hw,  hh, dist];
+    const monTR = [ hw,  hh, dist];
+    const monBR = [ hw, -hh, dist];
+    const monBL = [-hw, -hh, dist];
+    const monC  = [0, 0, dist];
+    const monMR = [ hw, 0, dist];
+    const monMT = [0,  hh, dist];
+
+    // Oblique cabinet projection — depth pushes right AND up
+    // so head lands bottom-left, monitor lands upper-right
+    const a = 0.62;   // projection angle (~35°)
+    const k = 0.5;    // depth foreshortening
+
+    function proj(p) {
+      const [x, y, z] = p;
+      return [
+        x + z * Math.cos(a) * k,
+       -y - z * Math.sin(a) * k
+      ];
+    }
+
+    const pts = {
+      head: proj(head),
+      tl: proj(monTL), tr: proj(monTR), br: proj(monBR), bl: proj(monBL),
+      c: proj(monC), mr: proj(monMR), mt: proj(monMT),
+    };
+
+    // auto-fit into SVG with padding
+    const allPts = Object.values(pts);
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const [x, y] of allPts) {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const pad = 44;
+    const sc = Math.min((svgW - pad * 2) / ((maxX - minX) || 1),
+                        (svgH - pad * 2) / ((maxY - minY) || 1));
+    const cx = svgW / 2 - ((minX + maxX) / 2) * sc;
+    const cy = svgH / 2 - ((minY + maxY) / 2) * sc;
+
+    function s(pt) { return [pt[0] * sc + cx, pt[1] * sc + cy]; }
+
+    const H  = s(pts.head);
+    const TL = s(pts.tl), TR = s(pts.tr), BR = s(pts.br), BL = s(pts.bl);
+    const C  = s(pts.c),  MR = s(pts.mr), MT = s(pts.mt);
+
+    const yawDeg  = round(yaw, 1);
+    const pitchDeg = round(pitch, 1);
+
+    // arc helper — always takes the short arc between two directions
+    function arcPath(origin, from, to, radius, color) {
+      const a1 = Math.atan2(from[1] - origin[1], from[0] - origin[0]);
+      const a2 = Math.atan2(to[1]   - origin[1], to[0]   - origin[0]);
+      let diff = a2 - a1;
+      while (diff >  Math.PI) diff -= 2 * Math.PI;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      const sweepFlag = diff > 0 ? 1 : 0;
+      const large = Math.abs(diff) > Math.PI ? 1 : 0;
+      return `<path d="M ${origin[0] + radius * Math.cos(a1)},${origin[1] + radius * Math.sin(a1)}
+                       A ${radius} ${radius} 0 ${large} ${sweepFlag}
+                         ${origin[0] + radius * Math.cos(a2)},${origin[1] + radius * Math.sin(a2)}"
+                fill="none" stroke="${color}" stroke-width="1.5" opacity="0.7"/>`;
+    }
+
+    // label position at arc midpoint
+    function arcMid(origin, from, to, radius) {
+      const a1 = Math.atan2(from[1] - origin[1], from[0] - origin[0]);
+      const a2 = Math.atan2(to[1]   - origin[1], to[0]   - origin[0]);
+      let diff = a2 - a1;
+      while (diff >  Math.PI) diff -= 2 * Math.PI;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      const mid = a1 + diff / 2;
+      return [origin[0] + radius * Math.cos(mid),
+              origin[1] + radius * Math.sin(mid)];
+    }
+
+    const yawR   = 36;
+    const pitchR = 46;
+    const yawMid   = arcMid(H, C, MR, yawR + 14);
+    const pitchMid = arcMid(H, C, MT, pitchR + 14);
+
+    const svg = `
+    <svg viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">
+
+      <!-- on-screen reference: center → mid-right (yaw extent) -->
+      <line x1="${C[0]}" y1="${C[1]}" x2="${MR[0]}" y2="${MR[1]}"
+            stroke="#60a5fa" stroke-width="1" stroke-dasharray="4 3" opacity="0.4"/>
+      <!-- on-screen reference: center → mid-top (pitch extent) -->
+      <line x1="${C[0]}" y1="${C[1]}" x2="${MT[0]}" y2="${MT[1]}"
+            stroke="#f59e0b" stroke-width="1" stroke-dasharray="4 3" opacity="0.4"/>
+
+      <!-- center line (dashed) -->
+      <line x1="${H[0]}" y1="${H[1]}" x2="${C[0]}" y2="${C[1]}"
+            stroke="#71717a" stroke-width="1" stroke-dasharray="5 3" opacity="0.4"/>
+
+      <!-- yaw line: H → mid-right edge -->
+      <line x1="${H[0]}" y1="${H[1]}" x2="${MR[0]}" y2="${MR[1]}"
+            stroke="#60a5fa" stroke-width="1.3" opacity="0.65"/>
+      <!-- pitch line: H → mid-top edge -->
+      <line x1="${H[0]}" y1="${H[1]}" x2="${MT[0]}" y2="${MT[1]}"
+            stroke="#f59e0b" stroke-width="1.3" opacity="0.65"/>
+
+      <!-- yaw arc -->
+      ${arcPath(H, C, MR, yawR, '#60a5fa')}
+      <!-- pitch arc -->
+      ${arcPath(H, C, MT, pitchR, '#f59e0b')}
+
+      <!-- monitor rectangle -->
+      <polygon points="${TL[0]},${TL[1]} ${TR[0]},${TR[1]} ${BR[0]},${BR[1]} ${BL[0]},${BL[1]}"
+               fill="rgba(96,165,250,0.06)" stroke="#60a5fa" stroke-width="1.5"/>
+      <circle cx="${C[0]}" cy="${C[1]}" r="2" fill="#71717a"/>
+
+      <!-- head -->
+      <circle cx="${H[0]}" cy="${H[1]}" r="5.5" fill="#60a5fa"/>
+      <circle cx="${H[0]}" cy="${H[1]}" r="5.5" fill="none" stroke="#60a5fa" stroke-width="1" opacity="0.3">
+        <animate attributeName="r" values="5.5;11;5.5" dur="3s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.3;0;0.3" dur="3s" repeatCount="indefinite"/>
+      </circle>
+
+      <!-- labels -->
+      <text x="${H[0] - 2}" y="${H[1] + 16}" fill="#71717a" font-size="9"
+            font-family="IBM Plex Mono, monospace" text-anchor="middle">you</text>
+
+      <text x="${yawMid[0]}" y="${yawMid[1]}" fill="#60a5fa" font-size="11"
+            font-family="IBM Plex Mono, monospace" font-weight="500"
+            text-anchor="start" dominant-baseline="middle">${yawDeg}° yaw</text>
+
+      <text x="${pitchMid[0]}" y="${pitchMid[1] - 4}" fill="#f59e0b" font-size="11"
+            font-family="IBM Plex Mono, monospace" font-weight="500"
+            text-anchor="end" dominant-baseline="auto">${pitchDeg}° pitch</text>
+
+      <text x="${(TR[0]+TL[0])/2}" y="${Math.min(TL[1],TR[1]) - 8}" fill="#71717a" font-size="9"
+            font-family="IBM Plex Mono, monospace" text-anchor="middle">monitor</text>
+    </svg>`;
+
+    box.innerHTML = svg;
+  }
+
+  // ============ INIT ============
+  calc();
+</script>
+
+</body>
+</html>
