@@ -1,0 +1,709 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>GEP Film Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: optics-bench split — rendered visor + spectra strips on the left, authoring controls on the right; stacks on phones. */
+:root {
+  --bg: #eef0f3;
+  --panel: #f8f9fb;
+  --ink: #1b2129;
+  --muted: #5d6673;
+  --line: #d3d8df;
+  --accent: #8a6a2c;       /* coating brass */
+  --accent-ink: #ffffff;
+  --track: #c9cfd8;
+  --warn: #a8402e;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14181d; --panel: #1b2027; --ink: #e4e8ee; --muted: #98a2b0; --line: #2c333d;
+    --accent: #d1a957; --accent-ink: #1b1608; --track: #39414d; --warn: #e8806c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14181d; --panel: #1b2027; --ink: #e4e8ee; --muted: #98a2b0; --line: #2c333d;
+  --accent: #d1a957; --accent-ink: #1b1608; --track: #39414d; --warn: #e8806c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 40px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 20px; }
+header h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.75rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 72ch; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.stage { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; }
+@media (max-width: 520px) { .stage { grid-template-columns: minmax(0, 1fr); justify-items: center; } }
+#visor { width: 240px; height: 240px; max-width: 100%; aspect-ratio: 1; display: block; }
+.readouts { display: grid; gap: 10px; min-width: 0; width: 100%; }
+.ro { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: baseline; border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
+.ro span:last-child { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.swatch { height: 44px; border-radius: 6px; border: 1px solid var(--line); }
+.strip { display: grid; gap: 6px; }
+.strip canvas { width: 100%; height: 34px; border-radius: 5px; border: 1px solid var(--line); display: block; cursor: crosshair; image-rendering: pixelated; }
+.axis { display: flex; justify-content: space-between; gap: 8px; font-family: var(--font-data); font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.presets button {
+  font: 500 0.85rem var(--font-body); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+  background: transparent; color: var(--ink); cursor: pointer;
+}
+.presets button:hover { border-color: var(--accent); }
+.presets button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ctl { display: grid; gap: 4px; }
+.ctl-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.ctl-head label { font-weight: 500; }
+.ctl-head output { font-family: var(--font-data); font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; }
+.ctl-head output b { color: var(--ink); font-weight: 500; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.row2 { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
+input[type="color"] { width: 44px; height: 32px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: var(--panel); }
+.recipe { font-family: var(--font-data); font-size: 0.85rem; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; white-space: pre-wrap; overflow-x: auto; margin: 0; }
+.recipe-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.copy { font: 500 0.8rem var(--font-body); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.note { color: var(--muted); font-size: 0.85rem; max-width: 72ch; margin: 0; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 0; }
+.mode { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; font-size: 0.78rem; }
+.mode span { padding: 4px 8px; text-align: center; color: var(--muted); }
+.mode span.on { background: var(--accent); color: var(--accent-ink); }
+details summary { cursor: pointer; font-weight: 500; }
+details[open] summary { margin-bottom: 10px; }
+.stackgrid { display: grid; gap: 12px; }
+.modebar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.seg { display: inline-grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: 600 0.9rem var(--font-display); padding: 8px 18px; border: 0; background: transparent; color: var(--muted); cursor: pointer; letter-spacing: 0.02em; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.modehint { color: var(--muted); font-size: 0.85rem; margin: 0; max-width: 60ch; }
+.check { display: flex; gap: 8px; align-items: baseline; font-size: 0.9rem; }
+.check input { accent-color: var(--accent); }
+.share { display: grid; gap: 8px; }
+.share-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.share input[type="text"] { font: 0.85rem var(--font-data); padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); min-width: 0; width: 100%; }
+.status { font-size: 0.82rem; color: var(--muted); min-height: 1.2em; margin: 0; }
+.status.err { color: var(--warn); }
+.warn { color: var(--warn); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>GEP Film Lab</h1>
+    <p>Coating colour for GEP visors and glass. Single films use the same Belcour–Barla evaluation as <code>gepEvalIridescence</code>; visors can also blend into a dichroic quarter-wave stack. Set the coating the way you would in the textures, then read off the values or share them as a code.</p>
+  </header>
+
+  <div class="modebar">
+    <div class="seg" role="group" aria-label="Material">
+      <button type="button" id="modeVisor" aria-pressed="true">Visor</button>
+      <button type="button" id="modeGlass" aria-pressed="false">Glass</button>
+    </div>
+    <p class="modehint" id="modeHint"></p>
+  </div>
+
+  <div class="grid">
+    <section class="panel" aria-label="Preview">
+      <div class="stage">
+        <canvas id="visor" width="240" height="240" aria-label="Reflection preview: centre is head-on, rim is grazing"></canvas>
+        <div class="readouts">
+          <div class="label">At view angle</div>
+          <div class="swatch" id="swatch" title="Reflection"></div>
+          <div class="ro"><span>Reflectance (luminance)</span><span id="roLum">–</span></div>
+          <div class="ro"><span>Linear RGB</span><span id="roRGB">–</span></div>
+          <div class="ro"><span>Head-on reflectance</span><span id="roHead">–</span></div>
+          <div data-mode="glass" hidden>
+            <div class="label">Seen through the glass</div>
+            <div class="swatch" id="swatchT" title="Transmission"></div>
+            <div class="ro"><span>Transmission (luminance)</span><span id="roT">–</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="note" id="discNote"></p>
+
+      <div class="strip">
+        <div class="label" id="angLabel">Reflection vs view angle</div>
+        <canvas id="angStrip" width="90" height="1" aria-label="Reflection colour from head-on to grazing"></canvas>
+        <div class="axis"><span>0°</span><span>30°</span><span>60°</span><span>89°</span></div>
+      </div>
+      <div class="strip" data-mode="glass" hidden>
+        <div class="label">Transmission vs view angle</div>
+        <canvas id="trnStrip" width="90" height="1" aria-label="Transmitted colour from head-on to grazing"></canvas>
+        <div class="axis"><span>0°</span><span>30°</span><span>60°</span><span>89°</span></div>
+      </div>
+      <div class="strip">
+        <div class="label" id="thkLabel">Colour vs normal-map B at this angle (click to set)</div>
+        <canvas id="thkStrip" width="256" height="1" aria-label="Colour across thickness values"></canvas>
+        <div class="axis" id="thkAxis1"><span>B 0</span><span>B 128</span><span>B 255</span></div>
+        <div class="axis" id="thkAxis2"><span>film 0 nm · band 380 nm</span><span>201 · 581</span><span>400 · 780</span></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Controls">
+      <div class="presets" id="presets" role="group" aria-label="Recipes"></div>
+
+      <!-- ---- Visor controls ---- -->
+      <div data-mode="visor" class="stackgrid">
+        <div class="ctl">
+          <div class="ctl-head"><label for="thick">Normal-map B</label><output id="oThick"></output></div>
+          <input type="range" id="thick" min="0" max="255" step="1" value="166">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label for="coat">Coating amount (255 − normal-map A)</label><output id="oCoat"></output></div>
+          <input type="range" id="coat" min="0" max="255" step="1" value="255">
+          <div class="mode" aria-hidden="true"><span id="mFilm">Film 0 → 100%  (A 255 → 128)</span><span id="mStack">Film → stack  (A 127 → 0)</span></div>
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label for="ior">Film IOR (global <code>GEP_FILM_IOR</code>)</label><output id="oIor"></output></div>
+          <input type="range" id="ior" min="1.20" max="2.60" step="0.01" value="2.40">
+        </div>
+        <hr>
+        <div class="label">Substrate (base colour + metallic) · film mode only</div>
+        <div class="row2">
+          <input type="color" id="base" value="#bcbcbc" aria-label="Visor base colour">
+          <div class="ctl">
+            <div class="ctl-head"><label for="metal">Metallic</label><output id="oMetal"></output></div>
+            <input type="range" id="metal" min="0" max="255" step="1" value="255">
+          </div>
+        </div>
+        <div class="ro"><span>Substrate F0 (luminance)</span><span id="roSub">–</span></div>
+        <details>
+          <summary>Stack constants (global)</summary>
+          <div class="stackgrid">
+            <div class="ctl">
+              <div class="ctl-head"><label for="nH">High-index layer n<sub>H</sub> (<code>GEP_STACK_NH</code>)</label><output id="onH"></output></div>
+              <input type="range" id="nH" min="1.55" max="2.50" step="0.01" value="1.80">
+            </div>
+            <div class="ctl">
+              <div class="ctl-head"><label for="nL">Low-index layer n<sub>L</sub> (<code>GEP_STACK_NL</code>)</label><output id="onL"></output></div>
+              <input type="range" id="nL" min="1.30" max="1.70" step="0.01" value="1.46">
+            </div>
+            <div class="ctl">
+              <div class="ctl-head"><label for="pairs">Layer pairs (<code>GEP_STACK_PAIRS</code>)</label><output id="oPairs"></output></div>
+              <input type="range" id="pairs" min="2" max="12" step="1" value="8">
+            </div>
+            <p class="note">Index contrast sets the band width (wider = paler, brighter); pairs set its depth and sharpness. The stack sits on polycarbonate (n 1.586) and replaces the base colour, so it works on top of any livery's visor.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- ---- Glass controls ---- -->
+      <div data-mode="glass" class="stackgrid" hidden>
+        <div class="ctl">
+          <div class="ctl-head"><label for="gFA">Filter (slot 14) alpha · gate + film IOR</label><output id="oFA"></output></div>
+          <input type="range" id="gFA" min="0" max="255" step="1" value="137">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label for="gRA">RoughMet A · thickness</label><output id="oRA"></output></div>
+          <input type="range" id="gRA" min="0" max="255" step="1" value="64">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label for="gRR">RoughMet R · strength</label><output id="oRR"></output></div>
+          <input type="range" id="gRR" min="0" max="255" step="1" value="255">
+        </div>
+        <hr>
+        <div class="label">Substrate (base colour + metallic)</div>
+        <div class="row2">
+          <input type="color" id="gBase" value="#ffffff" aria-label="Glass base colour">
+          <div class="ctl">
+            <div class="ctl-head"><label for="gMetal">Metallic</label><output id="oGMetal"></output></div>
+            <input type="range" id="gMetal" min="0" max="255" step="1" value="0">
+          </div>
+        </div>
+        <div class="ro"><span>Substrate F0 (luminance)</span><span id="roGSub">–</span></div>
+        <label class="check"><input type="checkbox" id="gNeutral" checked> <span>Neutral substrate under film (<code>GEP_GLASS_FILM_NEUTRAL_SUBSTRATE</code>)</span></label>
+        <div class="row2">
+          <input type="color" id="gFilter" value="#ffffff" aria-label="Filter colour">
+          <div class="label">Filter colour (shell transmittance per unit thickness)</div>
+        </div>
+        <label class="check"><input type="checkbox" id="gSlab" checked> <span>Include back-face reflection (<code>GEP_GLASS_SLAB</code>)</span></label>
+      </div>
+
+      <hr>
+      <div class="ctl">
+        <div class="ctl-head"><label for="angle">View angle</label><output id="oAngle"></output></div>
+        <input type="range" id="angle" min="0" max="89" step="1" value="0">
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="exposure">Preview exposure</label><output id="oExp"></output></div>
+        <input type="range" id="exposure" min="0.5" max="3" step="0.05" value="1.4">
+      </div>
+      <hr>
+      <div class="recipe-head"><span class="label">Texture values</span><button class="copy" type="button" id="copyBtn">Copy</button></div>
+      <pre class="recipe" id="recipe"></pre>
+      <p class="note" id="footNote"></p>
+      <hr>
+      <div class="share">
+        <div class="label">Share code</div>
+        <div class="share-row">
+          <input type="text" id="codeOut" readonly aria-label="Share code for the current settings">
+          <button class="copy" type="button" id="codeCopy">Copy code</button>
+        </div>
+        <div class="share-row">
+          <input type="text" id="codeIn" placeholder="Paste a GEPV1/… or GEPG1/… code" aria-label="Code to load" spellcheck="false" autocomplete="off">
+          <button class="copy" type="button" id="codeLoad">Load</button>
+        </div>
+        <p class="status" id="codeStatus" role="status"></p>
+        <p class="note">Codes carry the texture values plus any global constants changed from their defaults, so a recipe reproduces exactly. View angle and exposure are not included.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const PI = Math.PI, TMAX = 400, BAND0 = 380, BAND1 = 780, NS = 1.586;
+  const PMMA_N = 1.49, PMMA_F0 = 0.0387;
+  const M = [[3.2404542,-1.5371385,-0.4985314],[-0.9692660,1.8760108,0.0415560],[0.0556434,-0.2040259,1.0572252]];
+  const VAL = [5.4856e-13,4.4201e-13,5.2481e-13], POS = [1.6810e6,1.7953e6,2.2084e6], VAR = [4.3278e9,9.3046e9,6.6121e9];
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+  const schlick = (f0, c) => f0 + (1 - f0) * Math.pow(1 - c, 5);
+  const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const mulM = v => M.map(r => r[0]*v[0] + r[1]*v[1] + r[2]*v[2]);
+
+  // ---- Single film: port of gepEvalIridescence / gepThinFilmF0 / gepGlassFilmF0 (shader) ----
+  function sens(OPD, shift) {
+    const ph = 2 * PI * OPD * 1e-9, xyz = [0,0,0];
+    for (let i = 0; i < 3; i++) xyz[i] = VAL[i] * Math.sqrt(2*PI*VAR[i]) * Math.cos(POS[i]*ph + shift[i]) * Math.exp(-ph*ph*VAR[i]);
+    xyz[0] += 9.7470e-14 * Math.sqrt(2*PI*4.5282e9) * Math.cos(2.2399e6*ph + shift[0]) * Math.exp(-4.5282e9*ph*ph);
+    for (let i = 0; i < 3; i++) xyz[i] /= 1.0685e-7;
+    return mulM(xyz);
+  }
+  function irid(n1, eta2, c1, d, F0) {
+    const film = n1 + (eta2 - n1) * smoothstep(0, 0.03, d);
+    const c2sq = 1 - Math.pow(n1 / film, 2) * (1 - c1 * c1);
+    if (c2sq < 0) return [1,1,1];
+    const c2 = Math.sqrt(c2sq);
+    const R0 = Math.pow((film - n1) / (film + n1), 2), R12 = schlick(R0, c1), T121 = 1 - R12;
+    const phi12 = film < n1 ? PI : 0, phi21 = PI - phi12;
+    const R23 = [], phi = [];
+    for (let i = 0; i < 3; i++) {
+      const s = Math.sqrt(clamp(F0[i], 0, 0.9999)), nb = (1 + s) / (1 - s);
+      R23[i] = schlick(Math.pow((nb - film) / (nb + film), 2), c2);
+      phi[i] = phi21 + (nb < film ? PI : 0);
+    }
+    const OPD = 2 * film * d * c2, I = [0,0,0], Cm = [0,0,0], r123 = [];
+    for (let i = 0; i < 3; i++) {
+      const R123 = clamp(R12 * R23[i], 1e-5, 0.9999); r123[i] = Math.sqrt(R123);
+      const Rs = T121 * T121 * R23[i] / (1 - R123);
+      I[i] = R12 + Rs; Cm[i] = Rs - T121;
+    }
+    for (let m = 1; m <= 2; m++) {
+      const S = sens(m * OPD, phi.map(p => m * p));
+      for (let i = 0; i < 3; i++) { Cm[i] *= r123[i]; I[i] += Cm[i] * 2 * S[i]; }
+    }
+    return I.map(v => Math.max(v, 0));
+  }
+  // Effective F0 after the film fold (exact at the specular peak)
+  function filmF0(sub, NoV, t01, strength, ior) {
+    NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
+    if (strength <= 0) return sub.slice();
+    const Ff = irid(1, ior, NoV, t01 * TMAX, sub), k = Math.pow(1 - NoV, 5);
+    return sub.map((s, i) => s + (clamp((Ff[i] - k) / Math.max(1 - k, 1e-3), 0, 1) - s) * clamp(strength, 0, 1));
+  }
+  function filmRefl(sub, NoV, t01, strength, ior) {
+    NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
+    return filmF0(sub, NoV, t01, strength, ior).map(f => schlick(f, NoV));
+  }
+
+  // ---- Dichroic stack: (H L)^N H quarter-wave stack on polycarbonate, transfer matrix, s/p averaged ----
+  const LAMS = []; for (let l = 380; l <= 780; l += 10) LAMS.push(l);
+  const gl = (x, m, s1, s2) => Math.exp(-0.5 * Math.pow((x - m) / (x < m ? s1 : s2), 2));
+  const CMF = LAMS.map(l => [
+    1.056*gl(l,599.8,37.9,31.0) + 0.362*gl(l,442.0,16.0,26.7) - 0.065*gl(l,501.1,20.4,26.2),
+    0.821*gl(l,568.8,46.9,40.5) + 0.286*gl(l,530.9,16.3,31.1),
+    1.217*gl(l,437.0,11.8,36.0) + 0.681*gl(l,459.0,26.0,13.8)]);
+  function spec2rgb(R) { const x = [0,0,0]; for (let k = 0; k < R.length; k++) for (let i = 0; i < 3; i++) x[i] += R[k] * CMF[k][i]; return mulM(x); }
+  const WHITE = spec2rgb(LAMS.map(() => 1));
+
+  function stackSpectrum(lam0, cos0, nH, nL, N) {
+    const s0sq = 1 - cos0 * cos0, out = new Float64Array(LAMS.length);
+    const dH = lam0 / (4 * nH), dL = lam0 / (4 * nL);
+    for (let pol = 0; pol < 2; pol++) {
+      const eta = n => { const c = Math.sqrt(Math.max(1e-6, 1 - s0sq / (n * n))); return [pol ? n / c : n * c, c]; };
+      const [e0] = eta(1.0), [es] = eta(NS), [eH, cH] = eta(nH), [eL, cL] = eta(nL);
+      for (let k = 0; k < LAMS.length; k++) {
+        const l = LAMS[k];
+        let ar = 1, ai = 0, br = 0, bi = 0, cr = 0, ci = 0, dr = 1, di = 0;
+        const layer = (n, e, c, d) => {
+          const dl = 2 * PI * n * d * c / l, cs = Math.cos(dl), sn = Math.sin(dl), se = sn / e, es_ = e * sn;
+          const nar = ar*cs - bi*es_, nai = ai*cs + br*es_, nbr = -ai*se + br*cs, nbi = ar*se + bi*cs;
+          const ncr = cr*cs - di*es_, nci = ci*cs + dr*es_, ndr = -ci*se + dr*cs, ndi = cr*se + di*cs;
+          ar = nar; ai = nai; br = nbr; bi = nbi; cr = ncr; ci = nci; dr = ndr; di = ndi;
+        };
+        layer(nH, eH, cH, dH);
+        for (let p = 0; p < N; p++) { layer(nL, eL, cL, dL); layer(nH, eH, cH, dH); }
+        const Br = ar + br * es, Bi = ai + bi * es, Cr = cr + dr * es, Ci = ci + di * es;
+        const nr = e0*Br - Cr, ni = e0*Bi - Ci, dr_ = e0*Br + Cr, di_ = e0*Bi + Ci;
+        out[k] += 0.5 * (nr*nr + ni*ni) / (dr_*dr_ + di_*di_);
+      }
+    }
+    return out;
+  }
+  function stackRefl(t01, NoV, nH, nL, N) {
+    const c = spec2rgb(stackSpectrum(BAND0 + (BAND1 - BAND0) * t01, Math.max(clamp(NoV, 0, 1), 1e-3), nH, nL, N));
+    return c.map((v, i) => Math.max(0, v / WHITE[i]));
+  }
+
+  const toLin = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  const toSRGB = c => { c = clamp(c, 0, 1); return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; };
+  const LUM = [0.2126, 0.7152, 0.0722];
+  const lum = v => v[0]*LUM[0] + v[1]*LUM[1] + v[2]*LUM[2];
+  const css = (v, e) => `rgb(${v.map(x => Math.round(255 * toSRGB(x * e))).join(",")})`;
+  const hexRGB8 = hex => [1,3,5].map(i => parseInt(hex.slice(i, i + 2), 16));
+
+  // ---- Visor model: film (A 255->128) then film->stack blend (A 127->0) ----
+  function visorRefl(s, NoV, t01) {
+    const F = filmRefl(s.sub, NoV, t01, s.filmStr, s.ior);
+    if (s.stackMix <= 0) return F;
+    const S = stackRefl(t01, NoV, s.nH, s.nL, s.pairs);
+    return F.map((v, i) => v + (S[i] - v) * s.stackMix);
+  }
+
+  // ---- Glass model: port of glass.hlsl (film fold, C2 entry loss, SLAB back face, exit loss) ----
+  function glassEval(g, NoV, t01) {
+    NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
+    const front = filmRefl(g.sub, NoV, t01, g.strength, g.ior);
+    const Fe = lum(front);                                   // F_entry = Schlick(F0lum), Schlick is linear in F0
+    const cosG = Math.sqrt(1 - (1 - NoV * NoV) / (PMMA_N * PMMA_N)), d = 1 / cosG;
+    const Fx = schlick(PMMA_F0, cosG);                       // exit and back face: bare PMMA
+    let R = front;
+    if (g.slab) {
+      const tau2 = lum(g.T0.map(t => Math.pow(Math.max(t, 1e-4), 2 * d)));
+      const Ft = 1 - Fe, back = Ft * Ft * Fx * tau2 / Math.max(1 - Fx * Fx * tau2, 1e-3);
+      const mult = Math.min(1 + back / Math.max(Fe, 1e-4), 16);
+      R = front.map(v => v * mult);
+    }
+    const T = g.T0.map(t => Math.pow(Math.max(t, 1e-4), d) * (1 - Fe) * (1 - Fx));
+    return { R, T };
+  }
+
+  const $ = id => document.getElementById(id);
+  const el = { thick: $("thick"), coat: $("coat"), ior: $("ior"), base: $("base"), metal: $("metal"),
+               nH: $("nH"), nL: $("nL"), pairs: $("pairs"),
+               gFA: $("gFA"), gRA: $("gRA"), gRR: $("gRR"), gBase: $("gBase"), gMetal: $("gMetal"),
+               gFilter: $("gFilter"), gNeutral: $("gNeutral"), gSlab: $("gSlab"),
+               angle: $("angle"), exposure: $("exposure") };
+
+  const VISOR_DEF = { thick: 0, coat: 0, base: "#bcbcbc", metal: 255, ior: 2.40, nH: 1.80, nL: 1.46, pairs: 8 };
+  const GLASS_DEF = { gFA: 255, gRA: 0, gRR: 0, gBase: "#ffffff", gMetal: 0, gFilter: "#ffffff", gNeutral: true, gSlab: true };
+
+  // coat = 255 - A
+  const PRESETS = {
+    visor: [
+      ["ruby", "Ruby", { thick: 166, coat: 255, base: "#bcbcbc", metal: 255 }],
+      ["gold", "Gold", { thick: 124, coat: 255, base: "#bcbcbc", metal: 255 }],
+      ["emerald", "Emerald", { thick: 96, coat: 255, base: "#bcbcbc", metal: 255 }],
+      ["blue", "Blue", { thick: 64, coat: 255, base: "#bcbcbc", metal: 255 }],
+      ["smoke", "Smoke film", { thick: 77, coat: 128, base: "#282828", metal: 0 }],
+      ["rubytint", "Ruby (film + tinted base)", { thick: 61, coat: 128, base: "#f35518", metal: 255 }],
+      ["none", "No coating", { thick: 0, coat: 0, base: "#bcbcbc", metal: 255 }]
+    ],
+    glass: [
+      ["ar", "AR (MgF₂-style)", { gFA: 35, gRA: 64, gRR: 255, gBase: "#ffffff", gMetal: 0 }],
+      ["amber", "Amber canopy (ITO-style)", { gFA: 137, gRA: 64, gRR: 255, gBase: "#ffffff", gMetal: 0 }],
+      ["palegold", "Pale gold", { gFA: 137, gRA: 57, gRR: 255, gBase: "#ffffff", gMetal: 0 }],
+      ["bronze", "Bronze", { gFA: 137, gRA: 70, gRR: 255, gBase: "#ffffff", gMetal: 0 }],
+      ["bare", "Bare glass", { gFA: 255, gRA: 0, gRR: 0, gBase: "#ffffff", gMetal: 0 }]
+    ]
+  };
+
+  let mode = "visor";
+  try { const m = localStorage.getItem("gepFilmLabMode"); if (m === "glass" || m === "visor") mode = m; } catch {}
+
+  function visorState() {
+    const rgb8 = hexRGB8(el.base.value), m = +el.metal.value / 255;
+    const sub = rgb8.map(c => 0.03 + (toLin(c / 255) - 0.03) * m);
+    const coat = +el.coat.value, A = 255 - coat, sAmt = coat / 255;
+    return { B: +el.thick.value, A, coat, t01: +el.thick.value / 255,
+             filmStr: clamp(sAmt / 0.5, 0, 1), stackMix: clamp((sAmt - 0.5) / 0.5, 0, 1),
+             ior: +el.ior.value, nH: +el.nH.value, nL: +el.nL.value, pairs: +el.pairs.value,
+             sub, rgb8, metal8: +el.metal.value };
+  }
+  function glassState() {
+    const FA = +el.gFA.value, RA = +el.gRA.value, RR = +el.gRR.value;
+    const gate = FA < 254.5;
+    const rgb8 = hexRGB8(el.gBase.value), m = +el.gMetal.value / 255;
+    const strength = gate ? RR / 255 : 0, neutral = el.gNeutral.checked;
+    let sub = rgb8.map(c => 0.04 + (toLin(c / 255) - 0.04) * m);
+    const subRaw = sub.slice();
+    if (strength > 0 && neutral) { const y = lum(sub); sub = sub.map(v => v + (y - v) * strength); }
+    const f8 = hexRGB8(el.gFilter.value);
+    return { FA, RA, RR, gate, ior: 1.2 + 1.3 * Math.min(FA, 254) / 254, strength, t01: RA / 255,
+             sub, subRaw, rgb8, metal8: +el.gMetal.value, neutral, slab: el.gSlab.checked,
+             f8, T0: f8.map(c => toLin(c / 255)) };
+  }
+
+  const visor = $("visor"), vctx = visor.getContext("2d");
+  const angCtx = $("angStrip").getContext("2d"), trnCtx = $("trnStrip").getContext("2d");
+  const thkC = $("thkStrip"), thkCtx = thkC.getContext("2d");
+
+  function drawStrip(ctx, n, fn, e) {
+    const img = ctx.createImageData(n, 1);
+    for (let x = 0; x < n; x++) {
+      const v = fn(x);
+      for (let i = 0; i < 3; i++) img.data[x*4 + i] = Math.round(255 * toSRGB(v[i] * e));
+      img.data[x*4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  function drawDisc(reflAt, ang, e) {
+    const W = visor.width, R = W / 2 - 4, BINS = 160, lut = [];
+    for (let b = 0; b < BINS; b++) { const r = (b + 0.5) / BINS; lut.push(reflAt(Math.sqrt(Math.max(0, 1 - r * r)))); }
+    const img = vctx.createImageData(W, W);
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+      const dx = x + 0.5 - W / 2, dy = y + 0.5 - W / 2, r = Math.sqrt(dx*dx + dy*dy) / R, o = (y * W + x) * 4;
+      if (r >= 1) { img.data[o + 3] = 0; continue; }
+      const v = lut[Math.min(BINS - 1, Math.floor(r * BINS))];
+      for (let i = 0; i < 3; i++) img.data[o + i] = Math.round(255 * toSRGB(v[i] * e));
+      img.data[o + 3] = r > 0.985 ? Math.round(255 * (1 - r) / 0.015) : 255;
+    }
+    vctx.putImageData(img, 0, 0);
+    const rr = Math.sin(ang * PI / 180) * R;
+    vctx.save();
+    vctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#8a6a2c";
+    vctx.setLineDash([4, 4]); vctx.lineWidth = 1.5;
+    vctx.beginPath(); vctx.arc(W / 2, W / 2, Math.max(rr, 2), 0, 2 * PI); vctx.stroke();
+    vctx.restore();
+  }
+  const setAxis = (id, a) => { $(id).innerHTML = a.map(t => `<span>${t}</span>`).join(""); };
+
+  // ---- Share codes ----
+  const f2 = v => (+v).toFixed(2), hx = h => h.slice(1).toLowerCase();
+  function makeCode() {
+    if (mode === "visor") {
+      const s = visorState(), p = [`GEPV1`, `B${s.B}`, `A${s.A}`, `C${hx(el.base.value)}`, `M${s.metal8}`];
+      if (f2(s.ior) !== f2(VISOR_DEF.ior)) p.push(`I${f2(s.ior)}`);
+      if (f2(s.nH) !== f2(VISOR_DEF.nH)) p.push(`H${f2(s.nH)}`);
+      if (f2(s.nL) !== f2(VISOR_DEF.nL)) p.push(`L${f2(s.nL)}`);
+      if (s.pairs !== VISOR_DEF.pairs) p.push(`P${s.pairs}`);
+      return p.join("/");
+    }
+    const g = glassState(), p = [`GEPG1`, `F${g.FA}`, `T${g.RA}`, `S${g.RR}`, `C${hx(el.gBase.value)}`, `M${g.metal8}`, `X${hx(el.gFilter.value)}`];
+    if (!g.neutral) p.push("N0");
+    if (!g.slab) p.push("K0");
+    return p.join("/");
+  }
+  function parseCode(text) {
+    const parts = text.trim().replace(/\s+/g, "").split("/").filter(Boolean);
+    if (!parts.length) throw new Error("Paste a code first.");
+    const head = parts[0].toUpperCase();
+    const kind = head === "GEPV1" ? "visor" : head === "GEPG1" ? "glass" : null;
+    if (!kind) throw new Error("Codes start with GEPV1 (visor) or GEPG1 (glass).");
+    const out = kind === "visor" ? { ...VISOR_DEF } : { ...GLASS_DEF }, bad = [];
+    const int8 = (v, k) => { if (!/^\d{1,3}$/.test(v) || +v > 255) throw new Error(`${k} must be a whole number 0–255.`); return +v; };
+    const hex = (v, k) => { if (!/^[0-9a-fA-F]{6}$/.test(v)) throw new Error(`${k} must be a six-digit hex colour.`); return "#" + v.toLowerCase(); };
+    const num = (v, k, a, b) => { const n = parseFloat(v); if (!isFinite(n) || n < a || n > b) throw new Error(`${k} must be between ${a} and ${b}.`); return n; };
+    for (const t of parts.slice(1)) {
+      const k = t[0].toUpperCase(), v = t.slice(1);
+      if (kind === "visor") {
+        if (k === "B") out.thick = int8(v, "B");
+        else if (k === "A") out.coat = 255 - int8(v, "A");
+        else if (k === "C") out.base = hex(v, "C");
+        else if (k === "M") out.metal = int8(v, "M");
+        else if (k === "I") out.ior = num(v, "I (film IOR)", 1.2, 2.6);
+        else if (k === "H") out.nH = num(v, "H (nH)", 1.55, 2.5);
+        else if (k === "L") out.nL = num(v, "L (nL)", 1.3, 1.7);
+        else if (k === "P") out.pairs = Math.round(num(v, "P (pairs)", 2, 12));
+        else bad.push(t);
+      } else {
+        if (k === "F") out.gFA = int8(v, "F");
+        else if (k === "T") out.gRA = int8(v, "T");
+        else if (k === "S") out.gRR = int8(v, "S");
+        else if (k === "C") out.gBase = hex(v, "C");
+        else if (k === "M") out.gMetal = int8(v, "M");
+        else if (k === "X") out.gFilter = hex(v, "X");
+        else if (k === "N") out.gNeutral = v !== "0";
+        else if (k === "K") out.gSlab = v !== "0";
+        else bad.push(t);
+      }
+    }
+    return { kind, values: out, bad };
+  }
+  function applyValues(values) {
+    for (const [k, v] of Object.entries(values)) {
+      const i = el[k]; if (!i) continue;
+      if (i.type === "checkbox") i.checked = !!v; else i.value = v;
+    }
+  }
+
+  function render() {
+    const ang = +el.angle.value, e = +el.exposure.value, NoV = Math.cos(ang * PI / 180);
+    $("oAngle").innerHTML = `<b>${ang}°</b> · NoV ${NoV.toFixed(2)}`;
+    $("oExp").innerHTML = `<b>×${e.toFixed(2)}</b>`;
+
+    if (mode === "visor") {
+      const s = visorState();
+      const F = visorRefl(s, NoV, s.t01), F0h = visorRefl(s, 1, s.t01);
+      const filmNm = Math.round(s.t01 * TMAX), bandNm = Math.round(BAND0 + (BAND1 - BAND0) * s.t01);
+      $("oThick").innerHTML = `<b>B ${s.B}</b> · film ${filmNm} nm · band ${bandNm} nm`;
+      $("oCoat").innerHTML = `<b>A ${s.A}</b> · film ${Math.round(s.filmStr * 100)}% · stack ${Math.round(s.stackMix * 100)}%`;
+      $("mFilm").classList.toggle("on", s.stackMix <= 0 && s.filmStr > 0);
+      $("mStack").classList.toggle("on", s.stackMix > 0);
+      $("oIor").innerHTML = `<b>${s.ior.toFixed(2)}</b>`;
+      $("oMetal").innerHTML = `<b>${s.metal8}</b>`;
+      $("onH").innerHTML = `<b>${s.nH.toFixed(2)}</b>`;
+      $("onL").innerHTML = `<b>${s.nL.toFixed(2)}</b>`;
+      const bw = 4 / PI * Math.asin((s.nH - s.nL) / (s.nH + s.nL)) * 50;
+      $("oPairs").innerHTML = `<b>${s.pairs}</b> · band ±${bw.toFixed(0)}%`;
+
+      $("swatch").style.background = css(F, e);
+      $("roLum").textContent = `${(lum(F) * 100).toFixed(1)}%`;
+      $("roRGB").textContent = F.map(v => v.toFixed(3)).join("  ");
+      $("roHead").textContent = `${(lum(F0h) * 100).toFixed(1)}%`;
+      $("roSub").textContent = `${(lum(s.sub) * 100).toFixed(1)}%`;
+
+      drawDisc(c => visorRefl(s, c, s.t01), ang, e);
+      drawStrip(angCtx, 90, x => visorRefl(s, Math.cos(x * PI / 180), s.t01), e);
+      drawStrip(thkCtx, 256, x => visorRefl(s, NoV, x / 255), e);
+
+      const m = s.stackMix >= 1 ? "stack" : s.stackMix > 0 ? "film → stack blend" : s.filmStr > 0 ? "single film" : "none";
+      $("recipe").textContent =
+`Normal map  B = ${s.B}    (film ${filmNm} nm / stack band ${bandNm} nm)
+            A = ${s.A}    (${m})
+Base colour sRGB ${s.rgb8.join(", ")}    (film mode only)
+Metallic    ${s.metal8}
+Film IOR    ${s.ior.toFixed(2)}  (global GEP_FILM_IOR${f2(s.ior) !== f2(VISOR_DEF.ior) ? ", changed from 2.40" : ""})
+Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (global)`;
+    } else {
+      const g = glassState();
+      const at = (c, t) => glassEval(g, c, t);
+      const cur = at(NoV, g.t01), head = at(1, g.t01);
+      const F0head = filmF0(g.sub, 1, g.t01, g.strength, g.ior);
+      $("oFA").innerHTML = g.gate ? `<b>A ${g.FA}</b> · film on · IOR ${g.ior.toFixed(2)}` : `<b>A 255</b> · no film`;
+      $("oRA").innerHTML = `<b>A ${g.RA}</b> · ${Math.round(g.t01 * TMAX)} nm`;
+      $("oRR").innerHTML = `<b>R ${g.RR}</b> · ${g.gate ? Math.round(g.strength * 100) + "%" : "ignored (gate off)"}`;
+      $("oGMetal").innerHTML = `<b>${g.metal8}</b>`;
+
+      $("swatch").style.background = css(cur.R, e);
+      $("roLum").textContent = `${(lum(cur.R) * 100).toFixed(1)}%`;
+      $("roRGB").textContent = cur.R.map(v => v.toFixed(3)).join("  ");
+      $("roHead").textContent = `${(lum(head.R) * 100).toFixed(1)}%`;
+      $("roGSub").textContent = `${(lum(g.subRaw) * 100).toFixed(1)}%`;
+      $("swatchT").style.background = css(cur.T, 1);
+      $("roT").textContent = `${(lum(cur.T) * 100).toFixed(1)}%`;
+
+      drawDisc(c => at(c, g.t01).R, ang, e);
+      drawStrip(angCtx, 90, x => at(Math.cos(x * PI / 180), g.t01).R, e);
+      drawStrip(trnCtx, 90, x => at(Math.cos(x * PI / 180), g.t01).T, 1);
+      drawStrip(thkCtx, 256, x => at(NoV, x / 255).R, e);
+
+      const needsC1 = g.strength > 0 && F0head[1] < 0.02;
+      const lines = [
+`Filter (slot 14) A = ${g.FA}    (${g.gate ? `film on, IOR ${g.ior.toFixed(2)}` : "no film"})`,
+`RoughMet A         = ${g.RA}    (thickness ${Math.round(g.t01 * TMAX)} nm)`,
+`RoughMet R         = ${g.RR}    (strength${g.gate ? " " + Math.round(g.strength * 100) + "%" : ", ignored while gate is off"})`,
+`Base colour sRGB ${g.rgb8.join(", ")}    Metallic ${g.metal8}`,
+`Filter colour sRGB ${g.f8.join(", ")}    (shell transmittance)`,
+`Head-on F0 ${F0head.map(v => v.toFixed(3)).join(", ")}${needsC1 ? "    ⚠ green < 0.02: needs GEP_GLASS_C1" : ""}`];
+      if (!g.neutral) lines.push("GEP_GLASS_FILM_NEUTRAL_SUBSTRATE 0");
+      if (!g.slab) lines.push("Preview without back face (GEP_GLASS_SLAB 0)");
+      $("recipe").textContent = lines.join("\n");
+    }
+    $("codeOut").value = makeCode();
+  }
+
+  let pending = false;
+  const schedule = () => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; render(); }); };
+
+  function buildPresets() {
+    const box = $("presets"); box.innerHTML = "";
+    for (const [id, name, vals] of PRESETS[mode]) {
+      const b = document.createElement("button");
+      b.type = "button"; b.dataset.p = id; b.textContent = name; b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", () => { applyValues(vals); markPreset(id); schedule(); });
+      box.appendChild(b);
+    }
+  }
+  function markPreset(name) {
+    document.querySelectorAll("#presets button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.p === name)));
+  }
+
+  function setMode(m, keepPreset) {
+    mode = m;
+    try { localStorage.setItem("gepFilmLabMode", m); } catch {}
+    $("modeVisor").setAttribute("aria-pressed", String(m === "visor"));
+    $("modeGlass").setAttribute("aria-pressed", String(m === "glass"));
+    document.querySelectorAll("[data-mode]").forEach(n => { n.hidden = n.dataset.mode !== m; });
+    buildPresets();
+    if (m === "visor") {
+      $("modeHint").textContent = "Default material (forward_def_ps). Coating in normal-map B and A; film IOR and stack are global constants.";
+      $("discNote").textContent = "Visor disc: centre is viewed head-on, the rim at grazing, lit by a uniform white sky. Colour is the reflectance itself; in-sim it multiplies whatever the visor reflects, then goes through the tonemap.";
+      $("thkLabel").textContent = "Colour vs normal-map B at this angle (click to set)";
+      setAxis("thkAxis1", ["B 0", "B 128", "B 255"]);
+      setAxis("thkAxis2", ["film 0 nm · band 380 nm", "201 · 581", "400 · 780"]);
+      $("thkAxis2").hidden = false;
+      $("footNote").textContent = "B is film thickness 0–400 nm in film mode and the stack's band centre 380–780 nm in stack mode; between A 127 and 0 the two blend (a perceptual interpolation). Normal map: four-channel BC7 with ordinary mips. Dielectric substrate F0 is 0.03, as on the cockpit path.";
+      if (!keepPreset) markPreset(null);
+    } else {
+      $("modeHint").textContent = "Glass material (glass.hlsl). The filter's alpha switches the film on and sets its IOR; RoughMet carries thickness and strength. No stack on glass.";
+      $("discNote").textContent = "Canopy patch: centre is viewed head-on, the rim at grazing, lit by a uniform white sky. Reflection includes the bare back face when the slab term is on; transmission is what you see through the shell, ignoring haze and diffuse alpha.";
+      $("thkLabel").textContent = "Reflection vs RoughMet A (thickness) at this angle (click to set)";
+      setAxis("thkAxis1", ["A 0 · 0 nm", "A 128 · 201 nm", "A 255 · 400 nm"]);
+      $("thkAxis2").hidden = true;
+      $("footNote").textContent = "Filter A 255 (or no alpha) means no film. Keep filter A flat across a coated region and feather edges with RoughMet R. Thickness: A = nm / 400 × 255. IOR: filter A = (n − 1.2) / 1.3 × 254. Dielectric substrate F0 is 0.04, as on the glass path.";
+      if (!keepPreset) markPreset(null);
+    }
+    schedule();
+  }
+
+  Object.values(el).forEach(i => i.addEventListener("input", () => { if (i !== el.angle && i !== el.exposure) markPreset(null); schedule(); }));
+  thkC.addEventListener("click", e => {
+    const r = thkC.getBoundingClientRect(), v = Math.round(clamp((e.clientX - r.left) / r.width, 0, 1) * 255);
+    (mode === "visor" ? el.thick : el.gRA).value = v;
+    markPreset(null); schedule();
+  });
+  for (const id of ["angStrip", "trnStrip"]) $(id).addEventListener("click", e => {
+    const r = e.currentTarget.getBoundingClientRect();
+    el.angle.value = Math.round(clamp((e.clientX - r.left) / r.width, 0, 1) * 89);
+    schedule();
+  });
+  $("modeVisor").addEventListener("click", () => setMode("visor"));
+  $("modeGlass").addEventListener("click", () => setMode("glass"));
+
+  async function copyText(btn, text, sel, label) {
+    try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; }
+    catch { sel(); btn.textContent = "Selected"; }
+    setTimeout(() => { btn.textContent = label; }, 1500);
+  }
+  $("copyBtn").addEventListener("click", () => copyText($("copyBtn"), $("recipe").textContent, () => {
+    const s = window.getSelection(), rg = document.createRange(); rg.selectNodeContents($("recipe")); s.removeAllRanges(); s.addRange(rg);
+  }, "Copy"));
+  $("codeCopy").addEventListener("click", () => copyText($("codeCopy"), $("codeOut").value, () => $("codeOut").select(), "Copy code"));
+
+  function loadCode() {
+    const st = $("codeStatus");
+    try {
+      const { kind, values, bad } = parseCode($("codeIn").value);
+      setMode(kind, true);
+      applyValues(values);
+      markPreset(null);
+      st.classList.remove("err");
+      st.textContent = `Loaded ${kind} code.` + (bad.length ? ` Ignored unknown part${bad.length > 1 ? "s" : ""}: ${bad.join(", ")}.` : "");
+      schedule();
+    } catch (err) { st.classList.add("err"); st.textContent = err.message; }
+  }
+  $("codeLoad").addEventListener("click", loadCode);
+  $("codeIn").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); loadCode(); } });
+
+  const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  if (mq && mq.addEventListener) mq.addEventListener("change", schedule);
+
+  // Start in a working state: ruby visor and amber canopy loaded, last-used mode shown.
+  applyValues(PRESETS.visor[0][2]);
+  applyValues(PRESETS.glass[1][2]);
+  setMode(mode, true);
+  markPreset(mode === "visor" ? "ruby" : "amber");
+  render();
+})();
+</script>
+
+</body></html>
