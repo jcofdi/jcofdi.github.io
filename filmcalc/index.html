@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Coating colour lab for GEP (DCS World): thin films and dichroic stacks on visors, glass and metals, with texture values and shareable recipes.">
+<meta name="description" content="Coating colour lab for GEP (DCS World): thin films and dichroic stacks on visors, glass and solids, with texture values and shareable recipes.">
 <meta property="og:title" content="GEP Film Lab">
-<meta property="og:description" content="Thin-film and dichroic coating colours for GEP visors, glass and metals, with texture values and shareable recipes.">
+<meta property="og:description" content="Thin-film and dichroic coating colours for GEP visors, glass and solids (paint, leather, metal), with texture values and shareable recipes.">
 <meta property="og:type" content="website">
 <title>GEP Film Lab</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -123,20 +123,20 @@ details.switches p { margin: 0; }
 .btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
 .share-main { font: 600 0.85rem var(--font-body); padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); cursor: pointer; }
 </style>
-
 </head>
 <body>
+
 <div class="wrap">
   <header>
     <h1>GEP Film Lab</h1>
-    <p>Coating colour for GEP visors, glass and metals. Films use the same Belcour–Barla evaluation as <code>gepEvalIridescence</code>; visors and glass can also use a dichroic quarter-wave stack. Set the coating the way you would in the textures, then read off the values or share them.</p>
+    <p>Coating colour for GEP visors, glass and solids (opaque paint, leather, metal). Films use the same Belcour–Barla evaluation as <code>gepEvalIridescence</code>; visors and glass can also use a dichroic quarter-wave stack. Set the coating the way you would in the textures, then read off the values or share them.</p>
   </header>
 
   <div class="modebar">
     <div class="seg" role="group" aria-label="Material">
       <button type="button" id="modeVisor" aria-pressed="true">Visor</button>
       <button type="button" id="modeGlass" aria-pressed="false">Glass</button>
-      <button type="button" id="modeMetal" aria-pressed="false">Metal</button>
+      <button type="button" id="modeMetal" aria-pressed="false">Solid</button>
     </div>
     <p class="modehint" id="modeHint"></p>
   </div>
@@ -160,6 +160,8 @@ details.switches p { margin: 0; }
             <div class="label">Diffuse: authored → stored</div>
             <div class="swpair"><div class="swatch" id="swD"></div><span>→</span><div class="swatch" id="swDs"></div></div>
             <div class="ro"><span>Stored metallic</span><span id="roMs">–</span></div>
+            <div class="ro"><span>Diffuse change (largest channel, stored sRGB)</span><span id="roDd">–</span></div>
+            <div class="ro"><span>Coating kept under the cap</span><span id="roKeep">–</span></div>
           </div>
         </div>
       </div>
@@ -227,12 +229,16 @@ details.switches p { margin: 0; }
               <input type="range" id="pairs" min="2" max="12" step="1" value="8">
             </div>
             <div class="ctl" data-mode="metal" hidden>
-              <div class="ctl-head"><label for="rampLo">Metal coating ramp start (<code>GEP_DEF_FILM_METAL_LO</code>)</label><output id="oRampLo"></output></div>
-              <input type="range" id="rampLo" min="0" max="1" step="0.01" value="0.45">
+              <div class="ctl-head"><label for="capD">Diffuse change cap (<code>GEP_DEF_FILM_DIFFUSE_CAP</code>)</label><output id="oCapD"></output></div>
+              <input type="range" id="capD" min="0" max="24" step="1" value="4">
             </div>
             <div class="ctl" data-mode="metal" hidden>
-              <div class="ctl-head"><label for="rampHi">Metal coating ramp end (<code>GEP_DEF_FILM_METAL_HI</code>)</label><output id="oRampHi"></output></div>
-              <input type="range" id="rampHi" min="0" max="1" step="0.01" value="0.65">
+              <div class="ctl-head"><label for="rampLo">Metallic guard start (<code>GEP_DEF_FILM_GUARD_LO</code>)</label><output id="oRampLo"></output></div>
+              <input type="range" id="rampLo" min="0" max="1" step="0.01" value="0">
+            </div>
+            <div class="ctl" data-mode="metal" hidden>
+              <div class="ctl-head"><label for="rampHi">Metallic guard end (<code>GEP_DEF_FILM_GUARD_HI</code>)</label><output id="oRampHi"></output></div>
+              <input type="range" id="rampHi" min="0" max="1" step="0.01" value="0">
             </div>
           </div>
         </details>
@@ -300,7 +306,7 @@ details.switches p { margin: 0; }
           <img id="cardImg" alt="Share card: coating preview with its code and link">
         </div>
         <div class="share-row">
-          <input type="text" id="codeIn" placeholder="Paste a GEPV1/…, GEPG1/… or GEPM1/… code" aria-label="Code to load" spellcheck="false" autocomplete="off">
+          <input type="text" id="codeIn" placeholder="Paste a GEPV1/…, GEPG1/… or GEPS1/… code" aria-label="Code to load" spellcheck="false" autocomplete="off">
           <button class="copy" type="button" id="codeLoad">Load</button>
         </div>
         <p class="status" id="codeStatus" role="status"></p>
@@ -436,29 +442,44 @@ details.switches p { margin: 0; }
     NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
     return coatF0(s.sub, NoV, t01, s.filmStr, s.stackMix, s).map(f => schlick(f, NoV));
   }
-  // ---- Metal (deferred path, planned ramp): coverage model + G-buffer solve ----
-  // metallic = metal coverage; the coating sits on the metal part and fades in over [lo, hi].
-  // Target F0 = lerp(0.04, coated metal, metallic); diffuse = base x (1 - metallic). The G-buffer holds one
-  // base colour + metallic, so solve for (m', base') giving the F0 exactly and the diffuse luminance exactly;
-  // the diffuse hue drifts toward the coating's [labeled approximation].
+  // ---- Solid (deferred path): coating on any opaque default material + G-buffer solve + diffuse-change cap ----
+  // The coating sits on the material's own specular S = lerp(0.04, base, metallic), at any metallic (an optional
+  // metallic guard can fade it in). The G-buffer holds one base colour + metallic, so solve for (m', base') giving
+  // the coated F0 exactly and the diffuse luminance exactly; the solve pushes the diffuse hue toward the coating's.
+  // Cap: the coating is faded (target F0 = lerp(S, coated, k)) to the largest k whose stored diffuse moves no more
+  // than the cap in 8-bit sRGB steps on any channel. Cap 0 = the material exactly as authored [labeled approximation].
+  const CAP_OFF = 24;
+  // Roots of 0.04 m'^2 + (Fl + Dl - 0.08) m' - (Fl - 0.04) = 0. m' = m is a root when F0 is uncoated; on dark bases
+  // (base luminance < 0.04) the other root is also in [0,1], so take the root nearest the authored metallic.
+  function gbufSolve(T, D, m) {
+    const Fl = lum(T), Dl = lum(D), qb = Fl + Dl - 0.08, qc = -(Fl - 0.04);
+    const sq = Math.sqrt(Math.max(qb * qb - 0.16 * qc, 0));
+    const roots = [(-qb + sq) / 0.08, (-qb - sq) / 0.08].filter(r => isFinite(r) && r >= -1e-6 && r <= 1 + 1e-6);
+    let mS = roots.length ? roots.reduce((a, r) => Math.abs(r - m) < Math.abs(a - m) ? r : a) : m;
+    mS = clamp(mS, 0, 1);
+    const baseS = mS < 1e-3 ? D.map(d => clamp(d / (1 - mS), 0, 1))                 // ~dielectric: base from diffuse
+                            : T.map(f => clamp((f - 0.04 * (1 - mS)) / mS, 0, 1));
+    return { mS, baseS, Ds: baseS.map(b => b * (1 - mS)), F0: baseS.map(b => 0.04 * (1 - mS) + b * mS) };
+  }
+  const sMove = (D, Ds) => 255 * Math.max(...D.map((d, i) => Math.abs(toSRGB(Ds[i]) - toSRGB(d))));
   function metalSolve(s, NoV, t01) {
     NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
     const m = s.m, base = s.baseLin, w = s.ramp;
+    const S = base.map(b => 0.04 + (b - 0.04) * m);
     const D = base.map(b => b * (1 - m));
-    if (w <= 0 || m <= 0 || (s.filmStr <= 0 && s.stackMix <= 0)) {
-      const F0 = base.map(b => 0.04 + (b - 0.04) * m);
-      return { F0, mS: m, baseS: base, D, Ds: D, w };
+    const none = { F0: S, S, T: S, mS: m, baseS: base, D, Ds: D, w, dd: 0, k: 1, coated: false };
+    if (w <= 0 || (s.filmStr <= 0 && s.stackMix <= 0)) return none;
+    const C = coatF0(S, NoV, t01, s.filmStr, s.stackMix, s);
+    const T = S.map((v, i) => v + (C[i] - v) * w);            // full target F0
+    const at = k => gbufSolve(S.map((v, i) => v + (T[i] - v) * k), D, m);
+    const cap = s.cap >= CAP_OFF ? Infinity : s.cap;
+    let k = 1, r = at(1);
+    if (sMove(D, r.Ds) > cap) {                               // largest k under the cap (bisection)
+      let lo = 0, hi = 1;
+      for (let it = 0; it < 16; it++) { const mid = (lo + hi) / 2; if (sMove(D, at(mid).Ds) <= cap) lo = mid; else hi = mid; }
+      k = lo; r = lo > 0 ? at(lo) : { mS: m, baseS: base, Ds: D, F0: S };
     }
-    const C = coatF0(base, NoV, t01, s.filmStr, s.stackMix, s);
-    const coated = base.map((b, i) => b + (C[i] - b) * w);
-    const F = coated.map(c => 0.04 * (1 - m) + c * m);
-    const Fl = lum(F), Dl = lum(D);
-    const qa = 0.04, qb = Fl + Dl - 0.08, qc = -(Fl - 0.04);
-    let mS = (-qb + Math.sqrt(Math.max(qb * qb - 4 * qa * qc, 0))) / (2 * qa);
-    mS = clamp(isFinite(mS) ? mS : m, 1e-3, 1);
-    const baseS = F.map(f => clamp((f - 0.04 * (1 - mS)) / mS, 0, 1));
-    const F0 = baseS.map(b => 0.04 * (1 - mS) + b * mS);
-    return { F0, mS, baseS, D, Ds: baseS.map(b => b * (1 - mS)), w };
+    return { ...r, S, T, D, w, k, dd: sMove(D, r.Ds), coated: true };
   }
   function metalRefl(s, NoV, t01) {
     NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
@@ -508,12 +529,12 @@ details.switches p { margin: 0; }
   const SHARE_BASE = (/^https?:$/.test(location.protocol) && !IN_ARTIFACT) ? location.origin + location.pathname : ARTIFACT_URL;
   const shareLink = () => `${SHARE_BASE}#${codeToHash($("codeOut").value)}`;
   const el = { thick: $("thick"), coat: $("coat"), ior: $("ior"), base: $("base"), metal: $("metal"),
-               nH: $("nH"), nL: $("nL"), pairs: $("pairs"), rampLo: $("rampLo"), rampHi: $("rampHi"),
+               nH: $("nH"), nL: $("nL"), pairs: $("pairs"), rampLo: $("rampLo"), rampHi: $("rampHi"), capD: $("capD"),
                gFA: $("gFA"), gRA: $("gRA"), gRR: $("gRR"), gBase: $("gBase"), gMetal: $("gMetal"),
                gFilter: $("gFilter"), gNeutral: $("gNeutral"), gSlab: $("gSlab"), gNM: $("gNM"),
                angle: $("angle") };
 
-  const VISOR_DEF = { thick: 0, coat: 0, base: "#bcbcbc", metal: 255, ior: 2.40, nH: 1.80, nL: 1.46, pairs: 8, rampLo: 0.45, rampHi: 0.65 };
+  const VISOR_DEF = { thick: 0, coat: 0, base: "#bcbcbc", metal: 255, ior: 2.40, nH: 1.80, nL: 1.46, pairs: 8, rampLo: 0, rampHi: 0, capD: 4 };
   const GLASS_DEF = { gFA: 255, gRA: 0, gRR: 0, gBase: "#ffffff", gMetal: 0, gFilter: "#ffffff", gNeutral: true, gSlab: true, gNM: 255 };
 
   // coat = 255 - A
@@ -541,6 +562,9 @@ details.switches p { margin: 0; }
       ["deepblue", "Deep blue", { ...TI, thick: 40 }],
       ["lightblue", "Light blue", { ...TI, thick: 52 }],
       ["gold2", "Second-order gold", { ...TI, thick: 70 }],
+      ["leather", "Black leather, blue sheen", { base: "#151517", metal: 0, coat: 64, thick: 12 }],
+      ["brownleather", "Brown leather, blue sheen (cap-limited)", { base: "#1e1b19", metal: 0, coat: 64, thick: 12 }],
+      ["haveglass", "Have Glass-style paint", { base: "#55585c", metal: 140, coat: 64, thick: 26 }],
       ["sheen", "Mid-metallic paint, subtle sheen", { base: "#8a8d90", metal: 150, coat: 64, thick: 24 }],
       ["bare", "Bare titanium", { ...TI, thick: 0, coat: 0 }]
     ]
@@ -555,13 +579,13 @@ details.switches p { margin: 0; }
     const diel = mode === "metal" ? 0.04 : 0.03;           // deferred path 0.04; cockpit forward path 0.03
     const sub = baseLin.map(b => diel + (b - diel) * m);
     const coat = +el.coat.value, A = 255 - coat;
-    const lo = +el.rampLo.value, hi = +el.rampHi.value;
-    const ramp = hi > lo ? smoothstep(lo, hi, m) : (m >= lo ? 1 : 0);
+    const lo = +el.rampLo.value, hi = +el.rampHi.value, cap = +el.capD.value;
+    const ramp = hi > lo ? smoothstep(lo, hi, m) : (m >= lo ? 1 : 0);   // metallic guard; 0/0 = off
     return { B: +el.thick.value, A, coat, t01: +el.thick.value / 255,
              filmStr: clamp((255 - A) / 127, 0, 1),        // A 255 -> 128
              stackMix: clamp((127 - A) / 127, 0, 1),       // A 127 -> 0
              ior: +el.ior.value, nH: +el.nH.value, nL: +el.nL.value, pairs: +el.pairs.value,
-             sub, baseLin, m, ramp, lo, hi, rgb8, metal8: +el.metal.value };
+             sub, baseLin, m, ramp, lo, hi, cap, rgb8, metal8: +el.metal.value };
   }
   function glassState() {
     const FA = +el.gFA.value, RA = +el.gRA.value, RR = +el.gRR.value;
@@ -620,12 +644,13 @@ details.switches p { margin: 0; }
   const f2 = v => (+v).toFixed(2), hx = h => h.slice(1).toLowerCase();
   function makeCode() {
     if (mode !== "glass") {
-      const s = visorState(), p = [mode === "metal" ? `GEPM1` : `GEPV1`, `B${s.B}`, `A${s.A}`, `C${hx(el.base.value)}`, `M${s.metal8}`];
+      const s = visorState(), p = [mode === "metal" ? `GEPS1` : `GEPV1`, `B${s.B}`, `A${s.A}`, `C${hx(el.base.value)}`, `M${s.metal8}`];
       if (f2(s.ior) !== f2(VISOR_DEF.ior)) p.push(`I${f2(s.ior)}`);
       if (f2(s.nH) !== f2(VISOR_DEF.nH)) p.push(`H${f2(s.nH)}`);
       if (f2(s.nL) !== f2(VISOR_DEF.nL)) p.push(`L${f2(s.nL)}`);
       if (s.pairs !== VISOR_DEF.pairs) p.push(`P${s.pairs}`);
-      if (mode === "metal" && (f2(s.lo) !== f2(VISOR_DEF.rampLo) || f2(s.hi) !== f2(VISOR_DEF.rampHi))) p.push(`R${f2(s.lo)}_${f2(s.hi)}`);
+      if (mode === "metal" && (f2(s.lo) !== f2(VISOR_DEF.rampLo) || f2(s.hi) !== f2(VISOR_DEF.rampHi))) p.push(`G${f2(s.lo)}_${f2(s.hi)}`);
+      if (mode === "metal" && s.cap !== VISOR_DEF.capD) p.push(`D${s.cap}`);
       return p.join("/");
     }
     const g = glassState(), p = [`GEPG1`, `F${g.FA}`, `T${g.RA}`, `S${g.RR}`, `C${hx(el.gBase.value)}`, `M${g.metal8}`, `X${hx(el.gFilter.value)}`];
@@ -641,10 +666,12 @@ details.switches p { margin: 0; }
     const parts = text.trim().replace(/\s+/g, "").split("/").filter(Boolean);
     if (!parts.length) throw new Error("Paste a code first.");
     const head = parts[0].toUpperCase();
-    const kind = /^GEPV[12]$/.test(head) ? "visor" : head === "GEPG1" ? "glass" : /^GEPM[12]$/.test(head) ? "metal" : null;
-    if (!kind) throw new Error("Codes start with GEPV1 (visor), GEPG1 (glass) or GEPM1 (metal).");
+    const kind = /^GEPV[12]$/.test(head) ? "visor" : head === "GEPG1" ? "glass" : /^GEP(S1|M[12])$/.test(head) ? "metal" : null;
+    if (!kind) throw new Error("Codes start with GEPV1 (visor), GEPG1 (glass) or GEPS1 (solid).");
+    const oldMetal = /^GEPM/.test(head);   // metal-ramp codes: coating faded in over metallic 0.45-0.65, no diffuse cap
     const v2 = head.endsWith("2") && kind !== "glass";   // dual-band prototype codes: A 127..64 was film -> stack, 63..0 dual band
     const out = kind === "glass" ? { ...GLASS_DEF } : { ...VISOR_DEF }, bad = [], notes = [];
+    if (oldMetal) { out.rampLo = 0.45; out.rampHi = 0.65; out.capD = CAP_OFF; notes.push("old metal code: loaded with its metallic ramp as the guard and no diffuse cap"); }
     const int8 = (v, k) => { if (!/^\d{1,3}$/.test(v) || +v > 255) throw new Error(`${k} must be a whole number 0–255.`); return +v; };
     const hex = (v, k) => { if (!/^[0-9a-fA-F]{6}$/.test(v)) throw new Error(`${k} must be a six-digit hex colour.`); return "#" + v.toLowerCase(); };
     const num = (v, k, a, b) => { const n = parseFloat(v); if (!isFinite(n) || n < a || n > b) throw new Error(`${k} must be between ${a} and ${b}.`); return n; };
@@ -663,7 +690,8 @@ details.switches p { margin: 0; }
         else if (k === "H") out.nH = num(v, "H (nH)", 1.55, 2.5);
         else if (k === "L") out.nL = num(v, "L (nL)", 1.3, 1.7);
         else if (k === "P") out.pairs = Math.round(num(v, "P (pairs)", 2, 12));
-        else if (k === "R" && v.includes("_")) { const [a, b] = v.split("_"); out.rampLo = num(a, "R start", 0, 1); out.rampHi = num(b, "R end", 0, 1); }
+        else if ((k === "G" || k === "R") && v.includes("_")) { const [a, b] = v.split("_"); out.rampLo = num(a, "guard start", 0, 1); out.rampHi = num(b, "guard end", 0, 1); }
+        else if (k === "D" && kind === "metal") out.capD = Math.round(num(v, "D (diffuse cap)", 0, CAP_OFF));
         else if (k === "R") {}   // retired dual-band ratio
         else bad.push(t);
       } else {
@@ -724,12 +752,14 @@ details.switches p { margin: 0; }
       $("oCoat").innerHTML = `A <b>${s.A}</b> · film ${Math.round(s.filmStr * 100)}% · stack ${Math.round(s.stackMix * 100)}%`;
       $("mFilm").classList.toggle("on", s.stackMix <= 0 && s.filmStr > 0);
       $("mStack").classList.toggle("on", s.stackMix > 0);
-      $("oMetal").innerHTML = isMetal ? `${(s.m).toFixed(2)} · coating ${Math.round(s.ramp * 100)}%` : `${(s.m).toFixed(2)}`;
+      $("oMetal").innerHTML = isMetal && s.ramp < 1 ? `${(s.m).toFixed(2)} · coating ${Math.round(s.ramp * 100)}% (guard)` : `${(s.m).toFixed(2)}`;
       $("oIor").innerHTML = ``;
       const bw = 4 / PI * Math.asin((s.nH - s.nL) / (s.nH + s.nL)) * 50;
       $("oPairs").innerHTML = `band ±${bw.toFixed(0)}%`;
-      $("oRampLo").innerHTML = `metallic ${Math.round(s.lo * 255)}`;
-      $("oRampHi").innerHTML = `metallic ${Math.round(s.hi * 255)}${s.hi <= s.lo ? " · end ≤ start: hard cut" : ""}`;
+      const guardOff = s.lo <= 0 && s.hi <= 0;
+      $("oRampLo").innerHTML = guardOff ? `off: coating at any metallic` : `metallic ${Math.round(s.lo * 255)}`;
+      $("oRampHi").innerHTML = guardOff ? `` : `metallic ${Math.round(s.hi * 255)}${s.hi <= s.lo ? " · end ≤ start: hard cut" : ""}`;
+      $("oCapD").innerHTML = s.cap >= CAP_OFF ? `off: full solve` : `stored diffuse moves ≤ <b>${s.cap}</b>/255 per channel`;
       $("roSub").textContent = pct(lum(s.sub));
       setMarker("mkThk", s.B / 255);
       thkAt = x => reflAt(NoV, x / 255);
@@ -740,13 +770,16 @@ details.switches p { margin: 0; }
         $("swD").style.background = css(sol.D, 1);
         $("swDs").style.background = css(sol.Ds, 1);
         $("roMs").textContent = `${sol.mS.toFixed(3)} (${Math.round(sol.mS * 255)})`;
+        $("roDd").textContent = sol.dd.toFixed(1) + "/255";
+        $("roKeep").textContent = !sol.coated ? "–" : `${Math.round(sol.k * 100)}%` + (sol.k < 1 ? ` (full needs ${sMove(sol.D, gbufSolve(sol.T, sol.D, s.m).Ds).toFixed(1)}/255)` : "");
       }
       const m = s.stackMix >= 1 ? "stack" : s.stackMix > 0 ? "film → stack blend" : s.filmStr > 0 ? "single film" : "none";
       $("recipe").textContent =
 `Normal map  B = ${s.B}    (film ${filmNm} nm / stack band ${bandNm} nm)
             A = ${s.A}    (${m})
-Base colour sRGB ${s.rgb8.join(", ")}    ${isMetal ? "(the metal)" : "(film mode only)"}
-Metallic    ${s.metal8}${isMetal ? `    (coating ${Math.round(s.ramp * 100)}% on ramp ${Math.round(s.lo * 255)}–${Math.round(s.hi * 255)})` : ""}
+Base colour sRGB ${s.rgb8.join(", ")}    ${isMetal ? "(the material as authored)" : "(film mode only)"}
+Metallic    ${s.metal8}${isMetal && s.ramp < 1 ? `    (coating ${Math.round(s.ramp * 100)}%: guard ${Math.round(s.lo * 255)}–${Math.round(s.hi * 255)})` : ""}${isMetal ? `
+Diffuse cap ${s.cap >= CAP_OFF ? "off" : s.cap + "/255"}  (global GEP_DEF_FILM_DIFFUSE_CAP)` : ""}
 Film IOR    ${s.ior.toFixed(2)}  (global GEP_FILM_IOR${f2(s.ior) !== f2(VISOR_DEF.ior) ? ", changed from 2.40" : ""})
 Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (global)`;
     } else {
@@ -822,6 +855,7 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
     document.querySelectorAll("#presets button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.p === name)));
   }
 
+  const MODE_NAME = { visor: "Visor", glass: "Glass", metal: "Solid" };
   const MODE_TEXT = {
     visor: {
       hint: "Visors: transparent default material. Coating in normal-map B and A.",
@@ -834,9 +868,9 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
       foot: "Filter A 255 (or no alpha) = no coating; 16–254 = film with IOR (n − 1.2)/1.3 × 254; 0–15 = dichroic stack (author it as 0). Keep filter A flat per region and feather with RoughMet R. Thickness A = nm/400 × 255; band A = (nm − 380)/400 × 255. Under a coating, base white at metallic 0 is plain glass; grey 55 / 58 / 64 at metallic 255 picks PMMA / glass / polycarbonate. Filter RGB is absorption. Models the pending glass drop with its defaults."
     },
     metal: {
-      hint: "Opaque default-material metals (deferred). Normal-map B and A, faded in by metallic.",
-      disc: "Disc: the coated reflectance stored in the G-buffer at this view angle. Diffuse swatches show the paint's diffuse colour as authored and as stored after the G-buffer solve.",
-      foot: "Metallic is read as metal coverage: the coating sits on the metal part and fades in between the ramp start and end (Global constants). The G-buffer stores one colour and one metallic, so the lab solves for a stored pair that reproduces the coated reflectance and the diffuse brightness exactly; the diffuse hue drifts toward the coating's [labeled approximation]. Strong films on mid-metallic parts tint the paint; subtle ones read as a sheen. Models the planned ramp patch, not the delivered metallic-230 gate. Heat tint: straw → bronze → purple → blue between B 16 and 56; dither B gradients."
+      hint: "Opaque default materials (deferred): paint, leather, metal. Normal-map B and A, at any metallic.",
+      disc: "Disc: the coated reflectance as stored in the G-buffer at this view angle, after the diffuse cap. Diffuse swatches show the material's diffuse colour as authored and as stored.",
+      foot: "The coating sits on the material's own reflection, lerp(0.04, base, metallic), at any metallic: on a dielectric (leather, paint, metallic 0) it is a sheen over the 4% gloss, on metal it is the full tint. The G-buffer stores one colour and one metallic, so the lab solves for a stored pair that gives the coated reflection exactly and keeps the diffuse brightness; that pushes the diffuse hue toward the coating's. The cap (Global constants) fades the coating until the stored diffuse moves no more than the cap in 8-bit sRGB steps; cap 0 is the material as authored [labeled approximation]. Dark and mid-metallic bases take a coating with little diffuse shift; bright dielectric paint can't, so it keeps little or none. The metallic guard (default off) fades the coating in by metallic if stray normal-map alpha turns up on uncoated parts. Heat tint on titanium: straw → bronze → purple → blue between B 16 and 56; dither B gradients."
     }
   };
 
@@ -920,7 +954,7 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
     x.imageSmoothingEnabled = false; x.drawImage(strip, 260, 150, 350, 36);
     x.fillStyle = col("--ink") || "#1b2129";
     x.font = "600 24px 'Space Grotesk', system-ui, sans-serif";
-    x.fillText(`GEP Film Lab · ${mode[0].toUpperCase() + mode.slice(1)}`, 260, 62);
+    x.fillText(`GEP Film Lab · ${MODE_NAME[mode]}`, 260, 62);
     x.font = "500 15px 'JetBrains Mono', ui-monospace, monospace";
     const code = $("codeOut").value, chunks = code.match(/.{1,34}(\/|$)/g) || [code];
     chunks.slice(0, 3).forEach((l, i) => x.fillText(l, 260, 96 + i * 20));
@@ -938,7 +972,7 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
   // carries the code and link, so an image-only paste still shares everything.
   $("shareBtn").addEventListener("click", async () => {
     const link = shareLink(), code = $("codeOut").value;
-    const title = `GEP Film Lab · ${mode[0].toUpperCase() + mode.slice(1)}`;
+    const title = `GEP Film Lab · ${MODE_NAME[mode]}`;
     const text = `${title}\n${code}\n${link}`;
     const c = makeCard(link), dataUrl = c.toDataURL("image/png");
     $("cardImg").src = dataUrl; $("cardWrap").hidden = false;
@@ -975,7 +1009,7 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
       setMode(kind, true);
       applyValues(values);
       markPreset(null);
-      status(`Loaded ${kind} ${fromLink ? "recipe from the link" : "code"}.` + (notes.length ? ` Note: ${notes.join(", ")}.` : "") + (bad.length ? ` Ignored unknown part${bad.length > 1 ? "s" : ""}: ${bad.join(", ")}.` : ""));
+      status(`Loaded ${MODE_NAME[kind].toLowerCase()} ${fromLink ? "recipe from the link" : "code"}.` + (notes.length ? ` Note: ${notes.join(", ")}.` : "") + (bad.length ? ` Ignored unknown part${bad.length > 1 ? "s" : ""}: ${bad.join(", ")}.` : ""));
       schedule();
     } catch (err) { status(err.message, true); }
   }
@@ -989,7 +1023,7 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
   $("codeIn").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); loadCode(); } });
   function loadFromHash() {
     const h = (location.hash || "").slice(1);
-    if (/^GEP[VGM][12]-/i.test(h)) { loadCodeText(hashToCode(h), true); return true; }
+    if (/^GEP([VGM][12]|S1)-/i.test(h)) { loadCodeText(hashToCode(h), true); return true; }
     return false;
   }
   window.addEventListener("hashchange", loadFromHash);
