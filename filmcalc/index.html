@@ -97,12 +97,25 @@ details.switches p { margin: 0; }
 .status { font-size: 0.82rem; color: var(--muted); min-height: 1.2em; margin: 0; }
 .status.err { color: var(--warn); }
 .warn { color: var(--warn); }
+/* lab v13 additions */
+.num { width: 6.2em; font: 0.85rem var(--font-data); font-variant-numeric: tabular-nums; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); text-align: right; }
+.info { font-family: var(--font-data); font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.2em; }
+.info b { color: var(--ink); font-weight: 500; }
+.bar { position: relative; padding-top: 9px; }
+.marker { position: absolute; top: 0; width: 0; height: 0; transform: translateX(-50%); border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid var(--ink); pointer-events: none; }
+.swpair { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center; }
+.swpair .swatch { height: 28px; }
+.swpair span { color: var(--muted); font-size: 0.8rem; }
+.modehint { min-height: 1.5em; flex: 1 1 18em; min-width: 0; }
+.card-wrap { display: grid; gap: 8px; }
+.card-wrap img { max-width: 100%; border-radius: 8px; border: 1px solid var(--line); }
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>
 
 <div class="wrap">
   <header>
     <h1>GEP Film Lab</h1>
-    <p>Coating colour for GEP visors and glass. Single films use the same Belcour–Barla evaluation as <code>gepEvalIridescence</code>; visors can also blend into a dichroic quarter-wave stack. Set the coating the way you would in the textures, then read off the values or share them as a code.</p>
+    <p>Coating colour for GEP visors, glass and metals. Films use the same Belcour–Barla evaluation as <code>gepEvalIridescence</code>; visors and glass can also use a dichroic quarter-wave stack. Set the coating the way you would in the textures, then read off the values or share them.</p>
   </header>
 
   <div class="modebar">
@@ -119,42 +132,47 @@ details.switches p { margin: 0; }
       <div class="stage">
         <canvas id="visor" width="240" height="240" aria-label="Reflection preview: centre is head-on, rim is grazing"></canvas>
         <div class="readouts">
-          <div class="label">At view angle</div>
-          <div class="swatch" id="swatch" title="Reflection"></div>
+          <div class="label">Reflection at view angle</div>
+          <div class="swatch" id="swatch" title="Reflection (brightness-normalised)"></div>
           <div class="ro"><span>Reflectance (luminance)</span><span id="roLum">–</span></div>
           <div class="ro"><span>Linear RGB</span><span id="roRGB">–</span></div>
           <div class="ro"><span>Head-on reflectance</span><span id="roHead">–</span></div>
           <div data-mode="glass" hidden>
             <div class="label">Seen through the glass</div>
-            <div class="swatch" id="swatchT" title="Transmission"></div>
+            <div class="swatch" id="swatchT" title="Transmission (true brightness)"></div>
             <div class="ro"><span>Transmission (luminance)</span><span id="roT">–</span></div>
+          </div>
+          <div data-mode="metal" hidden>
+            <div class="label">Diffuse: authored → stored</div>
+            <div class="swpair"><div class="swatch" id="swD"></div><span>→</span><div class="swatch" id="swDs"></div></div>
+            <div class="ro"><span>Stored metallic</span><span id="roMs">–</span></div>
           </div>
         </div>
       </div>
-      <p class="note" id="discNote"></p>
 
       <div class="strip">
-        <div class="label" id="angLabel">Reflection vs view angle</div>
-        <canvas id="angStrip" width="90" height="1" aria-label="Reflection colour from head-on to grazing"></canvas>
+        <div class="label" id="thkLabel">Colour vs normal-map B at this angle (click to set)</div>
+        <div class="bar"><span class="marker" id="mkThk"></span><canvas id="thkStrip" width="256" height="1" aria-label="Colour across thickness values"></canvas></div>
+        <div class="axis" id="thkAxis1"><span>B 0</span><span>B 128</span><span>B 255</span></div>
+        <div class="axis" id="thkAxis2"><span>film 0 nm · band 380 nm</span><span>201 · 581</span><span>400 · 780</span></div>
+      </div>
+      <div class="strip">
+        <div class="label">Reflection vs view angle (click to set)</div>
+        <div class="bar"><span class="marker" id="mkAng"></span><canvas id="angStrip" width="90" height="1" aria-label="Reflection colour from head-on to grazing"></canvas></div>
         <div class="axis"><span>0°</span><span>30°</span><span>60°</span><span>89°</span></div>
       </div>
       <div class="strip" data-mode="glass" hidden>
         <div class="label">Transmission vs view angle</div>
-        <canvas id="trnStrip" width="90" height="1" aria-label="Transmitted colour from head-on to grazing"></canvas>
+        <div class="bar"><span class="marker" id="mkTrn"></span><canvas id="trnStrip" width="90" height="1" aria-label="Transmitted colour from head-on to grazing"></canvas></div>
         <div class="axis"><span>0°</span><span>30°</span><span>60°</span><span>89°</span></div>
       </div>
-      <div class="strip">
-        <div class="label" id="thkLabel">Colour vs normal-map B at this angle (click to set)</div>
-        <canvas id="thkStrip" width="256" height="1" aria-label="Colour across thickness values"></canvas>
-        <div class="axis" id="thkAxis1"><span>B 0</span><span>B 128</span><span>B 255</span></div>
-        <div class="axis" id="thkAxis2"><span>film 0 nm · band 380 nm</span><span>201 · 581</span><span>400 · 780</span></div>
-      </div>
+      <p class="note">Reflection colours are brightness-normalised so the hue reads; the percentages are the real values. Transmission and diffuse swatches are at true brightness.</p>
     </section>
 
     <section class="panel" aria-label="Controls">
       <div class="presets" id="presets" role="group" aria-label="Recipes"></div>
 
-      <!-- ---- Visor controls ---- -->
+      <!-- ---- Visor + Metal controls (normal-map B/A) ---- -->
       <div data-mode="visor metal" class="stackgrid">
         <div class="ctl">
           <div class="ctl-head"><label for="thick">Normal-map B</label><output id="oThick"></output></div>
@@ -165,14 +183,10 @@ details.switches p { margin: 0; }
           <input type="range" id="coat" min="0" max="255" step="1" value="255">
           <div class="mode" aria-hidden="true"><span id="mFilm">Film 0 → 100%  (A 255 → 128)</span><span id="mStack">Film → stack  (A 127 → 0)</span></div>
         </div>
-        <div class="ctl">
-          <div class="ctl-head"><label for="ior">Film IOR (global <code>GEP_FILM_IOR</code>)</label><output id="oIor"></output></div>
-          <input type="range" id="ior" min="1.20" max="2.60" step="0.01" value="2.40">
-        </div>
         <hr>
-        <div class="label">Substrate (base colour + metallic) · film mode only</div>
+        <div class="label">Substrate (base colour + metallic)</div>
         <div class="row2">
-          <input type="color" id="base" value="#bcbcbc" aria-label="Visor base colour">
+          <input type="color" id="base" value="#bcbcbc" aria-label="Base colour">
           <div class="ctl">
             <div class="ctl-head"><label for="metal">Metallic</label><output id="oMetal"></output></div>
             <input type="range" id="metal" min="0" max="255" step="1" value="255">
@@ -180,21 +194,32 @@ details.switches p { margin: 0; }
         </div>
         <div class="ro"><span>Substrate F0 (luminance)</span><span id="roSub">–</span></div>
         <details>
-          <summary>Stack constants (global)</summary>
+          <summary>Global constants</summary>
           <div class="stackgrid">
             <div class="ctl">
-              <div class="ctl-head"><label for="nH">High-index layer n<sub>H</sub> (<code>GEP_STACK_NH</code>)</label><output id="onH"></output></div>
+              <div class="ctl-head"><label for="ior">Film IOR (<code>GEP_FILM_IOR</code>)</label><output id="oIor"></output></div>
+              <input type="range" id="ior" min="1.20" max="2.60" step="0.01" value="2.40">
+            </div>
+            <div class="ctl">
+              <div class="ctl-head"><label for="nH">Stack high-index layer n<sub>H</sub> (<code>GEP_STACK_NH</code>)</label><output id="onH"></output></div>
               <input type="range" id="nH" min="1.55" max="2.50" step="0.01" value="1.80">
             </div>
             <div class="ctl">
-              <div class="ctl-head"><label for="nL">Low-index layer n<sub>L</sub> (<code>GEP_STACK_NL</code>)</label><output id="onL"></output></div>
+              <div class="ctl-head"><label for="nL">Stack low-index layer n<sub>L</sub> (<code>GEP_STACK_NL</code>)</label><output id="onL"></output></div>
               <input type="range" id="nL" min="1.30" max="1.70" step="0.01" value="1.46">
             </div>
             <div class="ctl">
-              <div class="ctl-head"><label for="pairs">Layer pairs (<code>GEP_STACK_PAIRS</code>)</label><output id="oPairs"></output></div>
+              <div class="ctl-head"><label for="pairs">Stack layer pairs (<code>GEP_STACK_PAIRS</code>)</label><output id="oPairs"></output></div>
               <input type="range" id="pairs" min="2" max="12" step="1" value="8">
             </div>
-            <p class="note">Index contrast sets the band width (wider = paler, brighter); pairs set its depth and sharpness. The stack sits on polycarbonate (n 1.586) and replaces the base colour, so it works on top of any livery's visor.</p>
+            <div class="ctl" data-mode="metal" hidden>
+              <div class="ctl-head"><label for="rampLo">Metal coating ramp start (<code>GEP_DEF_FILM_METAL_LO</code>)</label><output id="oRampLo"></output></div>
+              <input type="range" id="rampLo" min="0" max="1" step="0.01" value="0.45">
+            </div>
+            <div class="ctl" data-mode="metal" hidden>
+              <div class="ctl-head"><label for="rampHi">Metal coating ramp end (<code>GEP_DEF_FILM_METAL_HI</code>)</label><output id="oRampHi"></output></div>
+              <input type="range" id="rampHi" min="0" max="1" step="0.01" value="0.65">
+            </div>
           </div>
         </details>
       </div>
@@ -202,16 +227,20 @@ details.switches p { margin: 0; }
       <!-- ---- Glass controls ---- -->
       <div data-mode="glass" class="stackgrid" hidden>
         <div class="ctl">
-          <div class="ctl-head"><label for="gFA">Filter (slot 14) alpha · gate + film IOR</label><output id="oFA"></output></div>
+          <div class="ctl-head"><label for="gFA">Filter (slot 14) alpha · coating on + type</label><output id="oFA"></output></div>
           <input type="range" id="gFA" min="0" max="255" step="1" value="137">
         </div>
         <div class="ctl">
-          <div class="ctl-head"><label for="gRA">RoughMet A · thickness</label><output id="oRA"></output></div>
+          <div class="ctl-head"><label for="gRA">RoughMet A · thickness or band</label><output id="oRA"></output></div>
           <input type="range" id="gRA" min="0" max="255" step="1" value="64">
         </div>
         <div class="ctl">
           <div class="ctl-head"><label for="gRR">RoughMet R · strength</label><output id="oRR"></output></div>
           <input type="range" id="gRR" min="0" max="255" step="1" value="255">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label for="gNM">Normal-map A · what's behind the glass</label><output id="oNM"></output></div>
+          <input type="range" id="gNM" min="0" max="255" step="1" value="255">
         </div>
         <hr>
         <div class="label">Substrate (base colour + metallic)</div>
@@ -223,49 +252,57 @@ details.switches p { margin: 0; }
           </div>
         </div>
         <div class="ro"><span>Substrate F0 (luminance)</span><span id="roGSub">–</span></div>
-        <p class="note">Under a coating, leave the base white at metallic 0 for ordinary glass, or use grey 55 / 58 / 64 at metallic 255 for PMMA / glass / polycarbonate. Metallic 255 also marks a metal-layer coating: the filter then keeps its colour.</p>
         <div class="row2">
           <input type="color" id="gFilter" value="#ffffff" aria-label="Filter colour">
-          <div class="label">Filter colour. Under a coating at metallic 0 only its brightness counts; at metallic 255 its colour is the metal layer's absorption</div>
+          <div class="label">Filter colour: absorption</div>
         </div>
         <details class="switches">
           <summary>Shader switches (both on in GEP; untick only to compare)</summary>
-          <label class="check"><input type="checkbox" id="gNeutral" checked> <span>Physical substrate under a coating (<code>GEP_GLASS_FILM_NEUTRAL_SUBSTRATE</code>): white or coloured bases read as plain glass, grey 55–64 picks the material</span></label>
-          <label class="check"><input type="checkbox" id="gSlab" checked> <span>Back-face reflection (<code>GEP_GLASS_SLAB</code>): the bare inner surface of the shell adds its own reflection behind the coating</span></label>
+          <label class="check"><input type="checkbox" id="gNeutral" checked> <span>Physical substrate under a coating (<code>GEP_GLASS_FILM_NEUTRAL_SUBSTRATE</code>)</span></label>
+          <label class="check"><input type="checkbox" id="gSlab" checked> <span>Back-face reflection (<code>GEP_GLASS_SLAB</code>)</span></label>
         </details>
       </div>
 
       <hr>
       <div class="ctl">
-        <div class="ctl-head"><label for="angle">View angle</label><output id="oAngle"></output></div>
+        <div class="ctl-head"><label for="angle">View angle (degrees)</label><output id="oAngle"></output></div>
         <input type="range" id="angle" min="0" max="89" step="1" value="0">
-      </div>
-      <div class="ctl">
-        <div class="ctl-head"><label for="exposure">Preview exposure</label><output id="oExp"></output></div>
-        <input type="range" id="exposure" min="0.5" max="3" step="0.05" value="1.4">
       </div>
       <hr>
       <div class="recipe-head"><span class="label">Texture values</span><button class="copy" type="button" id="copyBtn">Copy</button></div>
       <pre class="recipe" id="recipe"></pre>
-      <p class="note" id="footNote"></p>
       <hr>
       <div class="share">
-        <div class="label">Share code</div>
+        <div class="label">Share</div>
         <div class="share-row">
           <input type="text" id="codeOut" readonly aria-label="Share code for the current settings">
           <button class="copy" type="button" id="codeCopy">Copy code</button>
+        </div>
+        <div class="btnrow">
+          <button class="copy" type="button" id="linkCopy">Copy link</button>
+          <button class="copy" type="button" id="cardMake">Make image card</button>
+        </div>
+        <div class="card-wrap" id="cardWrap" hidden>
+          <img id="cardImg" alt="Share card: coating preview with its code">
+          <div class="btnrow"><button class="copy" type="button" id="cardCopy">Copy image</button></div>
         </div>
         <div class="share-row">
           <input type="text" id="codeIn" placeholder="Paste a GEPV1/…, GEPG1/… or GEPM1/… code" aria-label="Code to load" spellcheck="false" autocomplete="off">
           <button class="copy" type="button" id="codeLoad">Load</button>
         </div>
         <p class="status" id="codeStatus" role="status"></p>
-        <p class="note">Codes carry the texture values plus any global constants changed from their defaults, so a recipe reproduces exactly. View angle and exposure are not included.</p>
       </div>
+      <details>
+        <summary>About this mode</summary>
+        <div class="stackgrid">
+          <p class="note" id="discNote"></p>
+          <p class="note" id="footNote"></p>
+          <p class="note">Codes carry the texture values plus any global constants changed from their defaults, so a recipe reproduces exactly. Links open this lab on the recipe for anyone who can open the lab itself.</p>
+        </div>
+      </details>
     </section>
   </div>
 </div>
-
 <script>
 (() => {
   const PI = Math.PI, TMAX = 400, BAND0 = 380, BAND1 = 780, NS = 1.586;
@@ -360,6 +397,12 @@ details.switches p { margin: 0; }
     const c = spec2rgb(stackSpectrum(BAND0 + (BAND1 - BAND0) * t01, Math.max(clamp(NoV, 0, 1), 1e-3), nH, nL, N));
     return c.map((v, i) => Math.max(0, v / WHITE[i]));
   }
+  // Stack folded to an effective F0 at this view angle (same fold as the film)
+  function stackF0(t01, NoV, nH, nL, N) {
+    NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
+    const S = stackRefl(t01, NoV, nH, nL, N), k = Math.pow(1 - NoV, 5);
+    return S.map(v => clamp((v - k) / Math.max(1 - k, 1e-3), 0, 1));
+  }
 
   const toLin = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   const toSRGB = c => { c = clamp(c, 0, 1); return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; };
@@ -368,12 +411,45 @@ details.switches p { margin: 0; }
   const css = (v, e) => `rgb(${v.map(x => Math.round(255 * toSRGB(x * e))).join(",")})`;
   const hexRGB8 = hex => [1,3,5].map(i => parseInt(hex.slice(i, i + 2), 16));
 
-  // ---- Visor model: film (A 255->128) then film->stack blend (A 127->0) ----
+  // ---- Coating on a substrate F0 (gepCoatingF0): film (A 255->128), then film -> stack (A 127->0) ----
+  function coatF0(sub, NoV, t01, filmStr, stackMix, s) {
+    const F = filmF0(sub, NoV, t01, filmStr, s.ior);
+    if (stackMix <= 0) return F;
+    const S = stackF0(t01, NoV, s.nH, s.nL, s.pairs);
+    return F.map((v, i) => v + (S[i] - v) * stackMix);
+  }
+  // ---- Visor (forward path): coating over lerp(0.03, base, metallic) ----
   function visorRefl(s, NoV, t01) {
-    const F = filmRefl(s.sub, NoV, t01, s.filmStr, s.ior);
-    if (s.stackMix <= 0) return F;
-    const S = stackRefl(t01, NoV, s.nH, s.nL, s.pairs);
-    return F.map((v, i) => v + (S[i] - v) * s.stackMix);
+    NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
+    return coatF0(s.sub, NoV, t01, s.filmStr, s.stackMix, s).map(f => schlick(f, NoV));
+  }
+  // ---- Metal (deferred path, planned ramp): coverage model + G-buffer solve ----
+  // metallic = metal coverage; the coating sits on the metal part and fades in over [lo, hi].
+  // Target F0 = lerp(0.04, coated metal, metallic); diffuse = base x (1 - metallic). The G-buffer holds one
+  // base colour + metallic, so solve for (m', base') giving the F0 exactly and the diffuse luminance exactly;
+  // the diffuse hue drifts toward the coating's [labeled approximation].
+  function metalSolve(s, NoV, t01) {
+    NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
+    const m = s.m, base = s.baseLin, w = s.ramp;
+    const D = base.map(b => b * (1 - m));
+    if (w <= 0 || m <= 0 || (s.filmStr <= 0 && s.stackMix <= 0)) {
+      const F0 = base.map(b => 0.04 + (b - 0.04) * m);
+      return { F0, mS: m, baseS: base, D, Ds: D, w };
+    }
+    const C = coatF0(base, NoV, t01, s.filmStr, s.stackMix, s);
+    const coated = base.map((b, i) => b + (C[i] - b) * w);
+    const F = coated.map(c => 0.04 * (1 - m) + c * m);
+    const Fl = lum(F), Dl = lum(D);
+    const qa = 0.04, qb = Fl + Dl - 0.08, qc = -(Fl - 0.04);
+    let mS = (-qb + Math.sqrt(Math.max(qb * qb - 4 * qa * qc, 0))) / (2 * qa);
+    mS = clamp(isFinite(mS) ? mS : m, 1e-3, 1);
+    const baseS = F.map(f => clamp((f - 0.04 * (1 - mS)) / mS, 0, 1));
+    const F0 = baseS.map(b => 0.04 * (1 - mS) + b * mS);
+    return { F0, mS, baseS, D, Ds: baseS.map(b => b * (1 - mS)), w };
+  }
+  function metalRefl(s, NoV, t01) {
+    NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
+    return metalSolve(s, NoV, t01).F0.map(f => schlick(f, NoV));
   }
 
   // ---- Glass model: port of glass.hlsl (film or stack, C2 per channel, SLAB back face, substrate-matched bare faces) ----
@@ -383,18 +459,20 @@ details.switches p { margin: 0; }
     return PMMA_F0 + (clamp(subLum, 0.03, 0.06) - PMMA_F0) * w;
   }
   const iorFromF0 = f => { const q = Math.sqrt(f); return (1 + q) / (1 - q); };
-  function glassFront(g, NoV, t01) {
-    if (!g.stack) return filmRefl(g.sub, NoV, t01, g.strength, g.ior);
-    const S = stackRefl(t01, NoV, 1.80, 1.46, 8), k = Math.pow(1 - NoV, 5);
-    return g.sub.map((s, i) => schlick(s + (clamp((S[i] - k) / Math.max(1 - k, 1e-3), 0, 1) - s) * g.strength, NoV));
+  function glassFrontF0(g, NoV, t01) {
+    if (g.strength <= 0) return g.sub.slice();
+    if (!g.stack) return filmF0(g.sub, NoV, t01, g.strength, g.ior);
+    const S = stackF0(t01, NoV, 1.80, 1.46, 8);
+    return g.sub.map((s, i) => s + (S[i] - s) * g.strength);
   }
   function glassEval(g, NoV, t01) {
     NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
-    const front = glassFront(g, NoV, t01);
+    const F0f = glassFrontF0(g, NoV, t01), front = F0f.map(f => schlick(f, NoV));
     const Fe = lum(front);                                   // slab uses luminance (energyLobe.y is scalar)
     const n2 = iorFromF0(g.bare);
     const cosG = Math.sqrt(1 - (1 - NoV * NoV) / (n2 * n2)), d = 1 / cosG;
-    const Fx = schlick(g.bare, cosG);                        // exit and back face: bare substrate
+    const backF0 = Math.min(g.bare, lum(F0f)) * g.backScale; // GEP_GLASS_BACK_AR (AR front -> AR back) x GEP_GLASS_BACK_NM (0 = bonded)
+    const Fx = schlick(backF0, cosG);                        // exit and back face
     let R = front;
     if (g.slab) {
       const tau2 = lum(g.T0.map(t => Math.pow(Math.max(t, 1e-4), 2 * d)));
@@ -402,23 +480,43 @@ details.switches p { margin: 0; }
       const mult = Math.min(1 + back / Math.max(Fe, 1e-4), 16);
       R = front.map(v => v * mult);
     }
-    const T = g.T0.map((t, i) => Math.pow(Math.max(t, 1e-4), d) * (1 - front[i]) * (1 - Fx));   // C2 per channel
+    // chroma-min [heuristic double-count guard]: filter brightness multiplies; per channel its hue only removes
+    // colour the coating's through-colour hasn't already removed. Equals the plain product when either is neutral.
+    const Fp = g.T0.map(t => Math.pow(Math.max(t, 1e-4), d)), C = front.map(f => 1 - f);
+    const Lf = Math.max(...Fp), Cm = Math.max(...C, 1e-4);
+    const T = C.map((c, i) => Lf * c * Math.min(Fp[i] / Lf, c / Cm) / Math.max(c / Cm, 1e-4) * (1 - Fx));
     return { R, T };
   }
 
   const $ = id => document.getElementById(id);
+  const ARTIFACT_URL = "https://claude.ai/artifact/PN43XNLk2AyQ228azPz4Th";
   const el = { thick: $("thick"), coat: $("coat"), ior: $("ior"), base: $("base"), metal: $("metal"),
-               nH: $("nH"), nL: $("nL"), pairs: $("pairs"),
+               nH: $("nH"), nL: $("nL"), pairs: $("pairs"), rampLo: $("rampLo"), rampHi: $("rampHi"),
                gFA: $("gFA"), gRA: $("gRA"), gRR: $("gRR"), gBase: $("gBase"), gMetal: $("gMetal"),
-               gFilter: $("gFilter"), gNeutral: $("gNeutral"), gSlab: $("gSlab"),
-               angle: $("angle"), exposure: $("exposure") };
+               gFilter: $("gFilter"), gNeutral: $("gNeutral"), gSlab: $("gSlab"), gNM: $("gNM"),
+               angle: $("angle") };
 
-  const VISOR_DEF = { thick: 0, coat: 0, base: "#bcbcbc", metal: 255, ior: 2.40, nH: 1.80, nL: 1.46, pairs: 8 };
-  const GLASS_DEF = { gFA: 255, gRA: 0, gRR: 0, gBase: "#ffffff", gMetal: 0, gFilter: "#ffffff", gNeutral: true, gSlab: true };
+  const VISOR_DEF = { thick: 0, coat: 0, base: "#bcbcbc", metal: 255, ior: 2.40, nH: 1.80, nL: 1.46, pairs: 8, rampLo: 0.45, rampHi: 0.65 };
+  const GLASS_DEF = { gFA: 255, gRA: 0, gRR: 0, gBase: "#ffffff", gMetal: 0, gFilter: "#ffffff", gNeutral: true, gSlab: true, gNM: 255 };
 
   // coat = 255 - A
   const TI = { base: "#c3bcb3", metal: 255, coat: 127 };   // titanium-like base, A 128 = full film
   const PRESETS = {
+    visor: [
+      ["ruby", "Ruby", { thick: 166, coat: 255, base: "#bcbcbc", metal: 255 }],
+      ["gold", "Gold", { thick: 124, coat: 255, base: "#bcbcbc", metal: 255 }],
+      ["emerald", "Emerald", { thick: 96, coat: 255, base: "#bcbcbc", metal: 255 }],
+      ["blue", "Blue", { thick: 64, coat: 255, base: "#bcbcbc", metal: 255 }],
+      ["smoke", "Smoke film", { thick: 77, coat: 127, base: "#282828", metal: 0 }],
+      ["rubytint", "Ruby (film + tinted base)", { thick: 61, coat: 127, base: "#f35518", metal: 255 }],
+      ["none", "No coating", { thick: 0, coat: 0, base: "#bcbcbc", metal: 255 }]
+    ],
+    glass: [
+      ["ar", "Anti-reflective", { gFA: 35, gRA: 64, gRR: 255, gBase: "#ffffff", gMetal: 0, gFilter: "#ffffff", gNM: 255 }],
+      ["gold", "Gold canopy (ITO)", { gFA: 137, gRA: 64, gRR: 255, gBase: "#ffffff", gMetal: 0, gFilter: "#ffffff", gNM: 255 }],
+      ["hud", "HUD combiner", { gFA: 0, gRA: 105, gRR: 60, gBase: "#ffffff", gMetal: 0, gFilter: "#ffffff", gNM: 255 }],
+      ["bare", "Bare glass", { gFA: 255, gRA: 0, gRR: 0, gBase: "#ffffff", gMetal: 0, gFilter: "#ffffff", gNM: 255 }]
+    ],
     metal: [
       ["straw", "Straw", { ...TI, thick: 18 }],
       ["bronze", "Bronze", { ...TI, thick: 26 }],
@@ -426,40 +524,27 @@ details.switches p { margin: 0; }
       ["deepblue", "Deep blue", { ...TI, thick: 40 }],
       ["lightblue", "Light blue", { ...TI, thick: 52 }],
       ["gold2", "Second-order gold", { ...TI, thick: 70 }],
+      ["sheen", "Mid-metallic paint, subtle sheen", { base: "#8a8d90", metal: 150, coat: 64, thick: 24 }],
       ["bare", "Bare titanium", { ...TI, thick: 0, coat: 0 }]
-    ],
-    visor: [
-      ["ruby", "Ruby", { thick: 166, coat: 255, base: "#bcbcbc", metal: 255 }],
-      ["gold", "Gold", { thick: 124, coat: 255, base: "#bcbcbc", metal: 255 }],
-      ["emerald", "Emerald", { thick: 96, coat: 255, base: "#bcbcbc", metal: 255 }],
-      ["blue", "Blue", { thick: 64, coat: 255, base: "#bcbcbc", metal: 255 }],
-      ["smoke", "Smoke film", { thick: 77, coat: 128, base: "#282828", metal: 0 }],
-      ["rubytint", "Ruby (film + tinted base)", { thick: 61, coat: 128, base: "#f35518", metal: 255 }],
-      ["none", "No coating", { thick: 0, coat: 0, base: "#bcbcbc", metal: 255 }]
-    ],
-    glass: [
-      ["ar", "AR (MgF₂-style)", { gFA: 35, gRA: 64, gRR: 255, gBase: "#ffffff", gMetal: 0 }],
-      ["amber", "Amber canopy (ITO-style)", { gFA: 137, gRA: 64, gRR: 255, gBase: "#ffffff", gMetal: 0 }],
-      ["palegold", "Pale gold", { gFA: 137, gRA: 57, gRR: 255, gBase: "#ffffff", gMetal: 0 }],
-      ["bronze", "Bronze", { gFA: 137, gRA: 70, gRR: 255, gBase: "#ffffff", gMetal: 0 }],
-      ["hud", "HUD combiner (notch)", { gFA: 0, gRA: 105, gRR: 90, gBase: "#ffffff", gMetal: 0, gFilter: "#ffffff" }],
-      ["bare", "Bare glass", { gFA: 255, gRA: 0, gRR: 0, gBase: "#ffffff", gMetal: 0 }]
     ]
   };
+  const DEFAULT_PRESET = { visor: "ruby", glass: "gold", metal: "purple" };
 
   let mode = "visor";
   try { const m = localStorage.getItem("gepFilmLabMode"); if (m === "glass" || m === "visor" || m === "metal") mode = m; } catch {}
 
   function visorState() {
-    const rgb8 = hexRGB8(el.base.value), m = +el.metal.value / 255;
-    const diel = mode === "metal" ? 0.04 : 0.03;           // deferred path uses 0.04; the cockpit forward path 0.03
-    const sub = rgb8.map(c => diel + (toLin(c / 255) - diel) * m);
-    const coat = +el.coat.value, A = 255 - coat, sAmt = coat / 255;
-    const gated = mode === "metal" && +el.metal.value < 230;   // GEP_DEF_FILM_METAL_MIN 0.9
-    return { B: +el.thick.value, A, coat, t01: +el.thick.value / 255, gated,
-             filmStr: gated ? 0 : clamp(sAmt / 0.5, 0, 1), stackMix: gated ? 0 : clamp((sAmt - 0.5) / 0.5, 0, 1),
+    const rgb8 = hexRGB8(el.base.value), m = +el.metal.value / 255, baseLin = rgb8.map(c => toLin(c / 255));
+    const diel = mode === "metal" ? 0.04 : 0.03;           // deferred path 0.04; cockpit forward path 0.03
+    const sub = baseLin.map(b => diel + (b - diel) * m);
+    const coat = +el.coat.value, A = 255 - coat;
+    const lo = +el.rampLo.value, hi = +el.rampHi.value;
+    const ramp = hi > lo ? smoothstep(lo, hi, m) : (m >= lo ? 1 : 0);
+    return { B: +el.thick.value, A, coat, t01: +el.thick.value / 255,
+             filmStr: clamp((255 - A) / 127, 0, 1),        // A 255 -> 128
+             stackMix: clamp((127 - A) / 127, 0, 1),       // A 127 -> 0
              ior: +el.ior.value, nH: +el.nH.value, nL: +el.nL.value, pairs: +el.pairs.value,
-             sub, rgb8, metal8: +el.metal.value };
+             sub, baseLin, m, ramp, lo, hi, rgb8, metal8: +el.metal.value };
   }
   function glassState() {
     const FA = +el.gFA.value, RA = +el.gRA.value, RR = +el.gRR.value;
@@ -469,34 +554,30 @@ details.switches p { margin: 0; }
     let sub = rgb8.map(c => 0.04 + (toLin(c / 255) - 0.04) * m);
     const subRaw = sub.slice();
     const wCoat = clamp(4 * strength, 0, 1);   // full from strength 0.25 up (edge ramp below)
-    if (strength > 0 && neutral) { const b = bareF0(lum(sub)); sub = sub.map(v => v + (b - v) * wCoat); }   // physical substrate under a coating
+    if (strength > 0 && neutral) { const b = bareF0(lum(sub)); sub = sub.map(v => v + (b - v) * wCoat); }
     const f8 = hexRGB8(el.gFilter.value);
-    return { FA, RA, RR, gate, stack: gate && FA <= 15, bare: bareF0(lum(subRaw)),
+    return { FA, RA, RR, gate, stack: gate && FA <= 15, bare: bareF0(lum(subRaw)), backScale: +el.gNM.value / 255, NM: +el.gNM.value,
              ior: 1.2 + 1.3 * Math.min(FA, 254) / 254, strength, t01: RA / 255,
              sub, subRaw, rgb8, metal8: +el.gMetal.value, neutral, slab: el.gSlab.checked,
-             f8, T0: (() => {   // GEP_GLASS_FILTER_NEUTRAL: dielectric coating -> filter brightness only; metallic keeps its colour
-               const t = f8.map(c => toLin(c / 255)), y = lum(t), k = wCoat * (1 - m);
-               return t.map(v => v + (y - v) * k);
-             })() };
+             f8, T0: f8.map(c => toLin(c / 255)) };
   }
 
   const visor = $("visor"), vctx = visor.getContext("2d");
   const angCtx = $("angStrip").getContext("2d"), trnCtx = $("trnStrip").getContext("2d");
   const thkC = $("thkStrip"), thkCtx = thkC.getContext("2d");
 
-  function drawStrip(ctx, n, fn, e) {
-    const img = ctx.createImageData(n, 1);
+  function drawStrip(ctx, vals, e) {
+    const n = vals.length, img = ctx.createImageData(n, 1);
     for (let x = 0; x < n; x++) {
-      const v = fn(x);
-      for (let i = 0; i < 3; i++) img.data[x*4 + i] = Math.round(255 * toSRGB(v[i] * e));
+      for (let i = 0; i < 3; i++) img.data[x*4 + i] = Math.round(255 * toSRGB(vals[x][i] * e));
       img.data[x*4 + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);
   }
-  function drawDisc(reflAt, ang, e) {
-    const W = visor.width, R = W / 2 - 4, BINS = 160, lut = [];
+  function drawDisc(ctx, W, reflAt, ang, e, marker) {
+    const R = W / 2 - 4, BINS = 160, lut = [];
     for (let b = 0; b < BINS; b++) { const r = (b + 0.5) / BINS; lut.push(reflAt(Math.sqrt(Math.max(0, 1 - r * r)))); }
-    const img = vctx.createImageData(W, W);
+    const img = ctx.createImageData(W, W);
     for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
       const dx = x + 0.5 - W / 2, dy = y + 0.5 - W / 2, r = Math.sqrt(dx*dx + dy*dy) / R, o = (y * W + x) * 4;
       if (r >= 1) { img.data[o + 3] = 0; continue; }
@@ -504,15 +585,19 @@ details.switches p { margin: 0; }
       for (let i = 0; i < 3; i++) img.data[o + i] = Math.round(255 * toSRGB(v[i] * e));
       img.data[o + 3] = r > 0.985 ? Math.round(255 * (1 - r) / 0.015) : 255;
     }
-    vctx.putImageData(img, 0, 0);
-    const rr = Math.sin(ang * PI / 180) * R;
-    vctx.save();
-    vctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#8a6a2c";
-    vctx.setLineDash([4, 4]); vctx.lineWidth = 1.5;
-    vctx.beginPath(); vctx.arc(W / 2, W / 2, Math.max(rr, 2), 0, 2 * PI); vctx.stroke();
-    vctx.restore();
+    ctx.putImageData(img, 0, 0);
+    if (marker) {
+      const rr = Math.sin(ang * PI / 180) * R;
+      ctx.save();
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#8a6a2c";
+      ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(W / 2, W / 2, Math.max(rr, 2), 0, 2 * PI); ctx.stroke();
+      ctx.restore();
+    }
   }
   const setAxis = (id, a) => { $(id).innerHTML = a.map(t => `<span>${t}</span>`).join(""); };
+  const setMarker = (id, f) => { $(id).style.left = `${(clamp(f, 0, 1) * 100).toFixed(2)}%`; };
+  const pct = v => `${(v * 100).toFixed(1)}%`;
 
   // ---- Share codes ----
   const f2 = v => (+v).toFixed(2), hx = h => h.slice(1).toLowerCase();
@@ -523,20 +608,26 @@ details.switches p { margin: 0; }
       if (f2(s.nH) !== f2(VISOR_DEF.nH)) p.push(`H${f2(s.nH)}`);
       if (f2(s.nL) !== f2(VISOR_DEF.nL)) p.push(`L${f2(s.nL)}`);
       if (s.pairs !== VISOR_DEF.pairs) p.push(`P${s.pairs}`);
+      if (mode === "metal" && (f2(s.lo) !== f2(VISOR_DEF.rampLo) || f2(s.hi) !== f2(VISOR_DEF.rampHi))) p.push(`R${f2(s.lo)}_${f2(s.hi)}`);
       return p.join("/");
     }
     const g = glassState(), p = [`GEPG1`, `F${g.FA}`, `T${g.RA}`, `S${g.RR}`, `C${hx(el.gBase.value)}`, `M${g.metal8}`, `X${hx(el.gFilter.value)}`];
+    if (g.NM !== 255) p.push(`W${g.NM}`);
     if (!g.neutral) p.push("N0");
     if (!g.slab) p.push("K0");
     return p.join("/");
   }
+  // Link form: only letters, digits and hyphens survive in an artifact link's #fragment
+  const codeToHash = c => c.replace(/\//g, "-").replace(/\./g, "p").replace(/_/g, "to");
+  const hashToCode = h => h.replace(/to/g, "_").replace(/p/g, ".").replace(/-/g, "/");
   function parseCode(text) {
     const parts = text.trim().replace(/\s+/g, "").split("/").filter(Boolean);
     if (!parts.length) throw new Error("Paste a code first.");
     const head = parts[0].toUpperCase();
-    const kind = head === "GEPV1" ? "visor" : head === "GEPG1" ? "glass" : head === "GEPM1" ? "metal" : null;
+    const kind = /^GEPV[12]$/.test(head) ? "visor" : head === "GEPG1" ? "glass" : /^GEPM[12]$/.test(head) ? "metal" : null;
     if (!kind) throw new Error("Codes start with GEPV1 (visor), GEPG1 (glass) or GEPM1 (metal).");
-    const out = kind === "glass" ? { ...GLASS_DEF } : { ...VISOR_DEF }, bad = [];
+    const v2 = head.endsWith("2") && kind !== "glass";   // dual-band prototype codes: A 127..64 was film -> stack, 63..0 dual band
+    const out = kind === "glass" ? { ...GLASS_DEF } : { ...VISOR_DEF }, bad = [], notes = [];
     const int8 = (v, k) => { if (!/^\d{1,3}$/.test(v) || +v > 255) throw new Error(`${k} must be a whole number 0–255.`); return +v; };
     const hex = (v, k) => { if (!/^[0-9a-fA-F]{6}$/.test(v)) throw new Error(`${k} must be a six-digit hex colour.`); return "#" + v.toLowerCase(); };
     const num = (v, k, a, b) => { const n = parseFloat(v); if (!isFinite(n) || n < a || n > b) throw new Error(`${k} must be between ${a} and ${b}.`); return n; };
@@ -544,13 +635,19 @@ details.switches p { margin: 0; }
       const k = t[0].toUpperCase(), v = t.slice(1);
       if (kind !== "glass") {
         if (k === "B") out.thick = int8(v, "B");
-        else if (k === "A") out.coat = 255 - int8(v, "A");
+        else if (k === "A") {
+          let a = int8(v, "A");
+          if (v2 && a < 128) { if (a < 64) notes.push("dual band dropped"); a = a >= 64 ? (a - 64) * 2 : 0; }
+          out.coat = 255 - a;
+        }
         else if (k === "C") out.base = hex(v, "C");
         else if (k === "M") out.metal = int8(v, "M");
         else if (k === "I") out.ior = num(v, "I (film IOR)", 1.2, 2.6);
         else if (k === "H") out.nH = num(v, "H (nH)", 1.55, 2.5);
         else if (k === "L") out.nL = num(v, "L (nL)", 1.3, 1.7);
         else if (k === "P") out.pairs = Math.round(num(v, "P (pairs)", 2, 12));
+        else if (k === "R" && v.includes("_")) { const [a, b] = v.split("_"); out.rampLo = num(a, "R start", 0, 1); out.rampHi = num(b, "R end", 0, 1); }
+        else if (k === "R") {}   // retired dual-band ratio
         else bad.push(t);
       } else {
         if (k === "F") out.gFA = int8(v, "F");
@@ -559,104 +656,137 @@ details.switches p { margin: 0; }
         else if (k === "C") out.gBase = hex(v, "C");
         else if (k === "M") out.gMetal = int8(v, "M");
         else if (k === "X") out.gFilter = hex(v, "X");
+        else if (k === "W") out.gNM = int8(v, "W (normal-map A)");
         else if (k === "N") out.gNeutral = v !== "0";
         else if (k === "K") out.gSlab = v !== "0";
-        else if (k === "Q") {}   // retired: filter passthrough now follows metallic
+        else if (k === "Q") {}   // retired filter flag
         else bad.push(t);
       }
     }
-    return { kind, values: out, bad };
+    return { kind, values: out, bad, notes };
   }
   function applyValues(values) {
     for (const [k, v] of Object.entries(values)) {
       const i = el[k]; if (!i) continue;
       if (i.type === "checkbox") i.checked = !!v; else i.value = v;
     }
+    syncNums();
   }
 
+  // ---- Number boxes beside every slider (type a value, Tab to the next) ----
+  const nums = [];
+  document.querySelectorAll('.ctl input[type="range"]').forEach(r => {
+    const ctl = r.closest(".ctl"), head = ctl.querySelector(".ctl-head"), out = head.querySelector("output");
+    const n = document.createElement("input");
+    n.type = "number"; n.className = "num"; n.min = r.min; n.max = r.max; n.step = r.step; n.value = r.value;
+    n.id = r.id + "Num"; n.setAttribute("aria-label", (head.querySelector("label")?.textContent || r.id) + " value");
+    head.appendChild(n);
+    if (out) { out.classList.add("info"); ctl.appendChild(out); }
+    n.addEventListener("input", () => {
+      if (n.value === "" || !isFinite(+n.value)) return;
+      r.value = clamp(+n.value, +r.min, +r.max);
+      r.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    n.addEventListener("change", () => { n.value = r.value; });
+    nums.push([r, n]);
+  });
+  function syncNums() { for (const [r, n] of nums) if (document.activeElement !== n) n.value = r.value; }
+
   function render() {
-    const ang = +el.angle.value, e = +el.exposure.value, NoV = Math.cos(ang * PI / 180);
-    $("oAngle").innerHTML = `<b>${ang}°</b> · NoV ${NoV.toFixed(2)}`;
-    $("oExp").innerHTML = `<b>×${e.toFixed(2)}</b>`;
+    syncNums();
+    const ang = +el.angle.value, NoV = Math.cos(ang * PI / 180);
+    $("oAngle").innerHTML = `NoV <b>${NoV.toFixed(2)}</b>`;
+    const angs = Array.from({ length: 90 }, (_, x) => Math.cos(x * PI / 180));
+    let reflAt, thkAt, head, cur;
 
     if (mode !== "glass") {
-      const s = visorState();
-      const F = visorRefl(s, NoV, s.t01), F0h = visorRefl(s, 1, s.t01);
+      const s = visorState(), isMetal = mode === "metal";
+      reflAt = (c, t) => isMetal ? metalRefl(s, c, t) : visorRefl(s, c, t);
       const filmNm = Math.round(s.t01 * TMAX), bandNm = Math.round(BAND0 + (BAND1 - BAND0) * s.t01);
-      $("oThick").innerHTML = `<b>B ${s.B}</b> · film ${filmNm} nm · band ${bandNm} nm`;
-      $("oCoat").innerHTML = `<b>A ${s.A}</b> · film ${Math.round(s.filmStr * 100)}% · stack ${Math.round(s.stackMix * 100)}%`;
+      $("oThick").innerHTML = `film <b>${filmNm} nm</b> · stack band <b>${bandNm} nm</b>`;
+      $("oCoat").innerHTML = `A <b>${s.A}</b> · film ${Math.round(s.filmStr * 100)}% · stack ${Math.round(s.stackMix * 100)}%`;
       $("mFilm").classList.toggle("on", s.stackMix <= 0 && s.filmStr > 0);
       $("mStack").classList.toggle("on", s.stackMix > 0);
-      $("oIor").innerHTML = `<b>${s.ior.toFixed(2)}</b>`;
-      $("oMetal").innerHTML = `<b>${s.metal8}</b>`;
-      $("onH").innerHTML = `<b>${s.nH.toFixed(2)}</b>`;
-      $("onL").innerHTML = `<b>${s.nL.toFixed(2)}</b>`;
+      $("oMetal").innerHTML = isMetal ? `${(s.m).toFixed(2)} · coating ${Math.round(s.ramp * 100)}%` : `${(s.m).toFixed(2)}`;
+      $("oIor").innerHTML = ``;
       const bw = 4 / PI * Math.asin((s.nH - s.nL) / (s.nH + s.nL)) * 50;
-      $("oPairs").innerHTML = `<b>${s.pairs}</b> · band ±${bw.toFixed(0)}%`;
+      $("oPairs").innerHTML = `band ±${bw.toFixed(0)}%`;
+      $("oRampLo").innerHTML = `metallic ${Math.round(s.lo * 255)}`;
+      $("oRampHi").innerHTML = `metallic ${Math.round(s.hi * 255)}${s.hi <= s.lo ? " · end ≤ start: hard cut" : ""}`;
+      $("roSub").textContent = pct(lum(s.sub));
+      setMarker("mkThk", s.B / 255);
+      thkAt = x => reflAt(NoV, x / 255);
+      cur = reflAt(NoV, s.t01); head = reflAt(1, s.t01);
 
-      $("swatch").style.background = css(F, e);
-      $("roLum").textContent = `${(lum(F) * 100).toFixed(1)}%`;
-      $("roRGB").textContent = F.map(v => v.toFixed(3)).join("  ");
-      $("roHead").textContent = `${(lum(F0h) * 100).toFixed(1)}%`;
-      $("roSub").textContent = `${(lum(s.sub) * 100).toFixed(1)}%` + (s.gated ? " · metallic below 230: no coating on this path" : "");
-
-      drawDisc(c => visorRefl(s, c, s.t01), ang, e);
-      drawStrip(angCtx, 90, x => visorRefl(s, Math.cos(x * PI / 180), s.t01), e);
-      drawStrip(thkCtx, 256, x => visorRefl(s, NoV, x / 255), e);
-
+      if (isMetal) {
+        const sol = metalSolve(s, Math.max(NoV, 1e-3), s.t01);
+        $("swD").style.background = css(sol.D, 1);
+        $("swDs").style.background = css(sol.Ds, 1);
+        $("roMs").textContent = `${sol.mS.toFixed(3)} (${Math.round(sol.mS * 255)})`;
+      }
       const m = s.stackMix >= 1 ? "stack" : s.stackMix > 0 ? "film → stack blend" : s.filmStr > 0 ? "single film" : "none";
-      $("recipe").textContent = mode === "metal" ?
+      $("recipe").textContent =
 `Normal map  B = ${s.B}    (film ${filmNm} nm / stack band ${bandNm} nm)
             A = ${s.A}    (${m})
-Base colour sRGB ${s.rgb8.join(", ")}    (the metal underneath)
-Metallic    ${s.metal8}    (${s.gated ? "below 230: coating ignored" : "≥ 230: coating on, forced to 255"})
-Film IOR    ${s.ior.toFixed(2)}  (global GEP_FILM_IOR${f2(s.ior) !== f2(VISOR_DEF.ior) ? ", changed from 2.40" : ""})
-Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (global)` :
-`Normal map  B = ${s.B}    (film ${filmNm} nm / stack band ${bandNm} nm)
-            A = ${s.A}    (${m})
-Base colour sRGB ${s.rgb8.join(", ")}    (film mode only)
-Metallic    ${s.metal8}
+Base colour sRGB ${s.rgb8.join(", ")}    ${isMetal ? "(the metal)" : "(film mode only)"}
+Metallic    ${s.metal8}${isMetal ? `    (coating ${Math.round(s.ramp * 100)}% on ramp ${Math.round(s.lo * 255)}–${Math.round(s.hi * 255)})` : ""}
 Film IOR    ${s.ior.toFixed(2)}  (global GEP_FILM_IOR${f2(s.ior) !== f2(VISOR_DEF.ior) ? ", changed from 2.40" : ""})
 Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (global)`;
     } else {
       const g = glassState();
-      const at = (c, t) => glassEval(g, c, t);
-      const cur = at(NoV, g.t01), head = at(1, g.t01);
-      const F0head = glassFront(g, 1, g.t01);
+      const ev = (c, t) => glassEval(g, c, t);
+      reflAt = (c, t) => ev(c, t).R;
+      const F0head = glassFrontF0(g, 1, g.t01);
       const bandNm = Math.round(BAND0 + (BAND1 - BAND0) * g.t01);
-      $("oFA").innerHTML = !g.gate ? `<b>A 255</b> · no coating` : g.stack ? `<b>A ${g.FA}</b> · dichroic stack` : `<b>A ${g.FA}</b> · film on · IOR ${g.ior.toFixed(2)}`;
-      $("oRA").innerHTML = g.stack ? `<b>A ${g.RA}</b> · band ${bandNm} nm` : `<b>A ${g.RA}</b> · ${Math.round(g.t01 * TMAX)} nm`;
+      $("oFA").innerHTML = !g.gate ? `no coating` : g.stack ? `dichroic stack` : `film · IOR <b>${g.ior.toFixed(2)}</b>`;
+      $("oRA").innerHTML = g.stack ? `band <b>${bandNm} nm</b>` : `<b>${Math.round(g.t01 * TMAX)} nm</b>`;
+      $("oRR").innerHTML = g.gate ? `${Math.round(g.strength * 100)}%` : `ignored (coating off)`;
+      $("oGMetal").innerHTML = `${(g.metal8 / 255).toFixed(2)}`;
+      $("oNM").innerHTML = g.NM >= 255 ? `air behind (canopy, gauge cover)` : g.NM <= 0 ? `bonded (laminated display)` : `back face ${Math.round(g.backScale * 100)}%`;
+      $("roGSub").textContent = `${pct(lum(g.subRaw))} · bare faces ${(g.bare * 100).toFixed(2)}% (n ${iorFromF0(g.bare).toFixed(3)})`;
       $("thkLabel").textContent = g.stack ? "Reflection vs RoughMet A (stack band centre) at this angle (click to set)" : "Reflection vs RoughMet A (thickness) at this angle (click to set)";
       setAxis("thkAxis1", g.stack ? ["A 0 · 380 nm", "A 128 · 581 nm", "A 255 · 780 nm"] : ["A 0 · 0 nm", "A 128 · 201 nm", "A 255 · 400 nm"]);
-      $("oRR").innerHTML = `<b>R ${g.RR}</b> · ${g.gate ? Math.round(g.strength * 100) + "%" : "ignored (gate off)"}`;
-      $("oGMetal").innerHTML = `<b>${g.metal8}</b>`;
-
-      $("swatch").style.background = css(cur.R, e);
-      $("roLum").textContent = `${(lum(cur.R) * 100).toFixed(1)}%`;
-      $("roRGB").textContent = cur.R.map(v => v.toFixed(3)).join("  ");
-      $("roHead").textContent = `${(lum(head.R) * 100).toFixed(1)}%`;
-      $("roGSub").textContent = `${(lum(g.subRaw) * 100).toFixed(1)}% · bare faces ${(g.bare * 100).toFixed(2)}% (n ${iorFromF0(g.bare).toFixed(3)})`;
-      $("swatchT").style.background = css(cur.T, 1);
-      $("roT").textContent = `${(lum(cur.T) * 100).toFixed(1)}%`;
-
-      drawDisc(c => at(c, g.t01).R, ang, e);
-      drawStrip(angCtx, 90, x => at(Math.cos(x * PI / 180), g.t01).R, e);
-      drawStrip(trnCtx, 90, x => at(Math.cos(x * PI / 180), g.t01).T, 1);
-      drawStrip(thkCtx, 256, x => at(NoV, x / 255).R, e);
-
+      setMarker("mkThk", g.RA / 255);
+      thkAt = x => reflAt(NoV, x / 255);
+      const curEv = ev(NoV, g.t01);
+      cur = curEv.R; head = ev(1, g.t01).R;
+      $("swatchT").style.background = css(curEv.T, 1);
+      $("roT").textContent = pct(lum(curEv.T));
+      drawStrip(trnCtx, angs.map(c => ev(c, g.t01).T), 1);
+      setMarker("mkTrn", ang / 89);
       const needsC1 = g.strength > 0 && F0head[1] < 0.02;
       const lines = [
 `Filter (slot 14) A = ${g.FA}    (${!g.gate ? "no coating" : g.stack ? "dichroic stack" : `film on, IOR ${g.ior.toFixed(2)}`})`,
 `RoughMet A         = ${g.RA}    (${g.stack ? `stack band ${bandNm} nm` : `thickness ${Math.round(g.t01 * TMAX)} nm`})`,
-`RoughMet R         = ${g.RR}    (strength${g.gate ? " " + Math.round(g.strength * 100) + "%" : ", ignored while gate is off"})`,
+`RoughMet R         = ${g.RR}    (strength${g.gate ? " " + Math.round(g.strength * 100) + "%" : ", ignored while coating is off"})`,
+`Normal map A       = ${g.NM}    (${g.NM >= 255 ? "air behind the glass" : g.NM <= 0 ? "bonded: no back face" : "back face " + Math.round(g.backScale * 100) + "%"})`,
 `Base colour sRGB ${g.rgb8.join(", ")}    Metallic ${g.metal8}`,
-`Filter colour sRGB ${g.f8.join(", ")}    (${g.strength <= 0 ? "shell absorption" : g.metal8 >= 255 ? "metal layer absorption, colour kept" : g.metal8 > 0 ? "partly kept (metallic " + g.metal8 + ")" : "brightness only under the coating"})`,
+`Filter colour sRGB ${g.f8.join(", ")}    (absorption; hue shared with the coating counted once)`,
 `Head-on F0 ${F0head.map(v => v.toFixed(3)).join(", ")}${needsC1 ? "    ⚠ green < 0.02: needs GEP_GLASS_C1" : ""}`];
       if (!g.neutral) lines.push("GEP_GLASS_FILM_NEUTRAL_SUBSTRATE 0");
       if (!g.slab) lines.push("Preview without back face (GEP_GLASS_SLAB 0)");
       $("recipe").textContent = lines.join("\n");
     }
+
+    // Brightness normalisation for the reflection views: peak channel over 0-60 deg and the thickness strip -> ~0.85
+    const angVals = angs.map(c => reflAt(c, mode === "glass" ? glassState().t01 : visorState().t01));
+    const thkVals = Array.from({ length: 256 }, (_, x) => thkAt(x));
+    let peak = 1e-4;
+    for (let x = 0; x <= 60; x++) peak = Math.max(peak, ...angVals[x]);
+    for (const v of thkVals) peak = Math.max(peak, ...v);
+    const e = clamp(0.85 / peak, 0.5, 25);
+
+    $("swatch").style.background = css(cur, e);
+    $("roLum").textContent = pct(lum(cur));
+    $("roRGB").textContent = cur.map(v => v.toFixed(3)).join("  ");
+    $("roHead").textContent = pct(lum(head));
+    const t01 = mode === "glass" ? glassState().t01 : visorState().t01;
+    drawDisc(vctx, visor.width, c => reflAt(c, t01), ang, e, true);
+    drawStrip(angCtx, angVals, e);
+    drawStrip(thkCtx, thkVals, e);
+    setMarker("mkAng", ang / 89);
     $("codeOut").value = makeCode();
+    $("cardWrap").hidden = true;
   }
 
   let pending = false;
@@ -675,7 +805,24 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
     document.querySelectorAll("#presets button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.p === name)));
   }
 
-  // Visor and Metal share the normal-map controls; keep each mode's values separately.
+  const MODE_TEXT = {
+    visor: {
+      hint: "Visors: transparent default material. Coating in normal-map B and A.",
+      disc: "Disc: centre viewed head-on, rim at grazing, lit by a uniform white sky. Colour is the reflectance itself; in-sim it multiplies whatever the visor reflects. Live in cockpit view; external view comes with the pending forward_def_ps patch.",
+      foot: "B is film thickness 0–400 nm in film mode and the stack's band centre 380–780 nm in stack mode. A 255–128 is film strength; A 127–0 blends the film into the stack (a perceptual cross-fade: author A 128 for film or A 0 for stack, and use values in between only for feathering). Normal map: four-channel BC7 or BC3 with real alpha. Dielectric F0 is 0.03, as on the cockpit path."
+    },
+    glass: {
+      hint: "Glass material. Filter alpha turns the coating on; RoughMet carries thickness and strength.",
+      disc: "Disc: a canopy patch, centre head-on, rim grazing, under a uniform white sky. Reflection includes the back face; transmission is the coating's complement combined with the filter (chroma-min), ignoring haze and diffuse alpha.",
+      foot: "Filter A 255 (or no alpha) = no coating; 16–254 = film with IOR (n − 1.2)/1.3 × 254; 0–15 = dichroic stack (author it as 0). Keep filter A flat per region and feather with RoughMet R. Thickness A = nm/400 × 255; band A = (nm − 380)/400 × 255. Under a coating, base white at metallic 0 is plain glass; grey 55 / 58 / 64 at metallic 255 picks PMMA / glass / polycarbonate. Filter RGB is absorption. Models the pending glass drop with its defaults."
+    },
+    metal: {
+      hint: "Opaque default-material metals (deferred). Normal-map B and A, faded in by metallic.",
+      disc: "Disc: the coated reflectance stored in the G-buffer at this view angle. Diffuse swatches show the paint's diffuse colour as authored and as stored after the G-buffer solve.",
+      foot: "Metallic is read as metal coverage: the coating sits on the metal part and fades in between the ramp start and end (Global constants). The G-buffer stores one colour and one metallic, so the lab solves for a stored pair that reproduces the coated reflectance and the diffuse brightness exactly; the diffuse hue drifts toward the coating's [labeled approximation]. Strong films on mid-metallic parts tint the paint; subtle ones read as a sheen. Models the planned ramp patch, not the delivered metallic-230 gate. Heat tint: straw → bronze → purple → blue between B 16 and 56; dither B gradients."
+    }
+  };
+
   const SHARED = ["thick", "coat", "base", "metal"], modeVals = {};
   function setMode(m, keepPreset) {
     if (mode !== "glass") modeVals[mode] = Object.fromEntries(SHARED.map(k => [k, el[k].value]));
@@ -683,7 +830,7 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
     mode = m;
     if (m !== "glass" && m !== prevMode) {
       if (modeVals[m]) applyValues(modeVals[m]);
-      else applyValues(PRESETS[m][m === "metal" ? 2 : 0][2]);
+      else applyValues(PRESETS[m].find(p => p[0] === DEFAULT_PRESET[m])[2]);
     }
     try { localStorage.setItem("gepFilmLabMode", m); } catch {}
     $("modeVisor").setAttribute("aria-pressed", String(m === "visor"));
@@ -691,35 +838,19 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
     $("modeMetal").setAttribute("aria-pressed", String(m === "metal"));
     document.querySelectorAll("[data-mode]").forEach(n => { n.hidden = !n.dataset.mode.split(" ").includes(m); });
     buildPresets();
-    if (m === "metal") {
-      $("modeHint").textContent = "Opaque default-material metals (deferred_def_ps patch), cockpit and external. Same normal-map B and A as visors; the coating applies only at metallic 230 or above (0.9).";
-      $("discNote").textContent = "Metal disc: centre is viewed head-on, the rim at grazing, lit by a uniform white sky. Colour is the coated reflectance stored in the G-buffer at this view angle. Presets are heat-tint colours on a titanium-like base (oxide n ≈ GEP_FILM_IOR 2.4).";
+    const t = MODE_TEXT[m];
+    $("modeHint").textContent = t.hint; $("modeHint").title = t.hint;
+    $("discNote").textContent = t.disc; $("footNote").textContent = t.foot;
+    if (m !== "glass") {
       $("thkLabel").textContent = "Colour vs normal-map B at this angle (click to set)";
       setAxis("thkAxis1", ["B 0", "B 128", "B 255"]);
-      setAxis("thkAxis2", ["film 0 nm · band 380 nm", "201 · 581", "400 · 780"]);
       $("thkAxis2").hidden = false;
-      $("footNote").textContent = "Heat tint runs straw → bronze → purple → blue → light blue between B 16 and 56, about four B steps per colour: paint B as a dithered gradient along the part. The model treats the metal as a non-metal of equal F0, so the order is right but deep blue reads darker than real; ease strength (A toward 255) rather than chasing B. Cavity still darkens recesses on top.";
-      if (!keepPreset) markPreset(null);
-    } else if (m === "visor") {
-      $("modeHint").textContent = "Default material (forward_def_ps). Coating in normal-map B and A; film IOR and stack are global constants.";
-      $("discNote").textContent = "Visor disc: centre is viewed head-on, the rim at grazing, lit by a uniform white sky. Colour is the reflectance itself; in-sim it multiplies whatever the visor reflects, then goes through the tonemap.";
-      $("thkLabel").textContent = "Colour vs normal-map B at this angle (click to set)";
-      setAxis("thkAxis1", ["B 0", "B 128", "B 255"]);
-      setAxis("thkAxis2", ["film 0 nm · band 380 nm", "201 · 581", "400 · 780"]);
-      $("thkAxis2").hidden = false;
-      $("footNote").textContent = "B is film thickness 0–400 nm in film mode and the stack's band centre 380–780 nm in stack mode; between A 127 and 0 the two blend (a perceptual interpolation). Normal map: four-channel BC7 with ordinary mips. Dielectric substrate F0 is 0.03, as on the cockpit path.";
-      if (!keepPreset) markPreset(null);
-    } else {
-      $("modeHint").textContent = "Glass material (glass.hlsl). Filter alpha switches the coating on: 16–254 = film with that IOR, 0–15 = dichroic stack. RoughMet carries thickness (or band centre) and strength.";
-      $("discNote").textContent = "Canopy patch: centre is viewed head-on, the rim at grazing, lit by a uniform white sky. Reflection includes the bare back face when the slab term is on; transmission is per channel (complement of the reflection) times the filter, ignoring haze and diffuse alpha. Exit and back faces use the substrate's F0 (grey base at metallic 255: PMMA 55, glass 58, polycarbonate 64).";
-      $("thkAxis2").hidden = true;
-      $("footNote").textContent = "Filter A 255 (or no alpha) means no coating; author the stack as filter A 0. Keep filter A flat across a coated region and feather edges with RoughMet R. Thickness: A = nm / 400 × 255. Band centre: A = (nm − 380) / 400 × 255. IOR: filter A = (n − 1.2) / 1.3 × 254. Under a coating at metallic 0 the filter keeps only its brightness and the coating supplies the colour; metallic 255 keeps the filter colour as a metal layer's absorption. Matches glass.hlsl with its defaults on.";
-      if (!keepPreset) markPreset(null);
-    }
+    } else $("thkAxis2").hidden = true;
+    if (!keepPreset) markPreset(null);
     schedule();
   }
 
-  Object.values(el).forEach(i => i.addEventListener("input", () => { if (i !== el.angle && i !== el.exposure) markPreset(null); schedule(); }));
+  Object.values(el).forEach(i => i.addEventListener("input", () => { if (i !== el.angle) markPreset(null); schedule(); }));
   thkC.addEventListener("click", e => {
     const r = thkC.getBoundingClientRect(), v = Math.round(clamp((e.clientX - r.left) / r.width, 0, 1) * 255);
     (mode === "glass" ? el.gRA : el.thick).value = v;
@@ -734,6 +865,7 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
   $("modeGlass").addEventListener("click", () => setMode("glass"));
   $("modeMetal").addEventListener("click", () => setMode("metal"));
 
+  const status = (msg, err) => { const st = $("codeStatus"); st.classList.toggle("err", !!err); st.textContent = msg; };
   async function copyText(btn, text, sel, label) {
     try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; }
     catch { sel(); btn.textContent = "Selected"; }
@@ -743,32 +875,97 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
     const s = window.getSelection(), rg = document.createRange(); rg.selectNodeContents($("recipe")); s.removeAllRanges(); s.addRange(rg);
   }, "Copy"));
   $("codeCopy").addEventListener("click", () => copyText($("codeCopy"), $("codeOut").value, () => $("codeOut").select(), "Copy code"));
+  $("linkCopy").addEventListener("click", () => {
+    const link = `${ARTIFACT_URL}#${codeToHash($("codeOut").value)}`;
+    copyText($("linkCopy"), link, () => { $("codeIn").value = link; $("codeIn").select(); }, "Copy link");
+    status("Link copied. It opens the lab on this recipe for anyone who can open the lab.");
+  });
 
-  function loadCode() {
-    const st = $("codeStatus");
+  // ---- Image card: disc + angle strip + code, for pasting into chats ----
+  function makeCard() {
+    const W = 640, H = 260, c = document.createElement("canvas"); c.width = W; c.height = H;
+    const x = c.getContext("2d"), cs = getComputedStyle(document.documentElement);
+    const col = n => cs.getPropertyValue(n).trim();
+    x.fillStyle = col("--panel") || "#f8f9fb"; x.fillRect(0, 0, W, H);
+    const disc = document.createElement("canvas"); disc.width = disc.height = 200;
+    const dctx = disc.getContext("2d");
+    const ang = +el.angle.value;
+    const t01 = mode === "glass" ? glassState().t01 : visorState().t01;
+    let reflAt;
+    if (mode === "glass") { const g = glassState(); reflAt = c2 => glassEval(g, c2, t01).R; }
+    else { const s = visorState(); reflAt = c2 => mode === "metal" ? metalRefl(s, c2, t01) : visorRefl(s, c2, t01); }
+    let peak = 1e-4; for (let a = 0; a <= 60; a++) peak = Math.max(peak, ...reflAt(Math.cos(a * PI / 180)));
+    const e = clamp(0.85 / peak, 0.5, 25);
+    drawDisc(dctx, 200, reflAt, ang, e, false);
+    x.drawImage(disc, 30, 30);
+    const strip = document.createElement("canvas"); strip.width = 90; strip.height = 1;
+    drawStrip(strip.getContext("2d"), Array.from({ length: 90 }, (_, a) => reflAt(Math.cos(a * PI / 180))), e);
+    x.imageSmoothingEnabled = false; x.drawImage(strip, 260, 150, 350, 36);
+    x.fillStyle = col("--ink") || "#1b2129";
+    x.font = "600 24px 'Space Grotesk', system-ui, sans-serif";
+    x.fillText(`GEP Film Lab · ${mode[0].toUpperCase() + mode.slice(1)}`, 260, 62);
+    x.font = "500 15px 'JetBrains Mono', ui-monospace, monospace";
+    const code = $("codeOut").value, chunks = code.match(/.{1,34}(\/|$)/g) || [code];
+    chunks.slice(0, 3).forEach((l, i) => x.fillText(l, 260, 96 + i * 20));
+    x.fillStyle = col("--muted") || "#5d6673"; x.font = "12px Inter, system-ui, sans-serif";
+    x.fillText("0°", 260, 204); x.fillText("reflection vs view angle", 380, 204); x.fillText("89°", 590, 204);
+    x.fillText("Head-on " + $("roHead").textContent + " · colours brightness-normalised", 260, 236);
+    return c;
+  }
+  let cardBlob = null;
+  $("cardMake").addEventListener("click", () => {
+    const c = makeCard();
+    $("cardImg").src = c.toDataURL("image/png");
+    $("cardWrap").hidden = false;
+    c.toBlob(b => { cardBlob = b; });
+    status("Card ready. Copy it, or right-click the image and copy it.");
+  });
+  $("cardCopy").addEventListener("click", async () => {
     try {
-      const { kind, values, bad } = parseCode($("codeIn").value);
+      if (!cardBlob || !window.ClipboardItem) throw new Error();
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": cardBlob })]);
+      status("Image copied.");
+    } catch { status("This browser blocked copying the image here: right-click the card and choose Copy image.", true); }
+  });
+
+  function loadCodeText(text, fromLink) {
+    try {
+      const { kind, values, bad, notes } = parseCode(text);
       setMode(kind, true);
       applyValues(values);
       markPreset(null);
-      st.classList.remove("err");
-      st.textContent = `Loaded ${kind} code.` + (bad.length ? ` Ignored unknown part${bad.length > 1 ? "s" : ""}: ${bad.join(", ")}.` : "");
+      status(`Loaded ${kind} ${fromLink ? "recipe from the link" : "code"}.` + (notes.length ? ` Note: ${notes.join(", ")}.` : "") + (bad.length ? ` Ignored unknown part${bad.length > 1 ? "s" : ""}: ${bad.join(", ")}.` : ""));
       schedule();
-    } catch (err) { st.classList.add("err"); st.textContent = err.message; }
+    } catch (err) { status(err.message, true); }
+  }
+  function loadCode() {
+    let t = $("codeIn").value.trim();
+    const hi = t.indexOf("#GEP");
+    if (hi >= 0) t = hashToCode(t.slice(hi + 1));
+    loadCodeText(t, hi >= 0);
   }
   $("codeLoad").addEventListener("click", loadCode);
   $("codeIn").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); loadCode(); } });
+  function loadFromHash() {
+    const h = (location.hash || "").slice(1);
+    if (/^GEP[VGM][12]-/i.test(h)) { loadCodeText(hashToCode(h), true); return true; }
+    return false;
+  }
+  window.addEventListener("hashchange", loadFromHash);
 
   const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
   if (mq && mq.addEventListener) mq.addEventListener("change", schedule);
 
-  // Start in a working state: ruby visor and amber canopy loaded, last-used mode shown.
-  applyValues(PRESETS.visor[0][2]);
-  applyValues(PRESETS.glass[1][2]);
+  // Start in a working state: last-used mode with its default recipe, or the recipe in the link.
+  applyValues(PRESETS.glass.find(p => p[0] === DEFAULT_PRESET.glass)[2]);
+  applyValues(PRESETS.visor.find(p => p[0] === DEFAULT_PRESET.visor)[2]);
+  if (mode === "metal") {
+    modeVals.visor = Object.fromEntries(Object.entries(PRESETS.visor[0][2]).filter(([k]) => SHARED.includes(k)));
+    applyValues(PRESETS.metal.find(p => p[0] === DEFAULT_PRESET.metal)[2]);
+  }
   setMode(mode, true);
-  if (mode === "metal") { applyValues(PRESETS.metal[2][2]); modeVals.visor = Object.fromEntries(Object.entries(PRESETS.visor[0][2]).filter(([k]) => SHARED.includes(k))); }
-  markPreset(mode === "visor" ? "ruby" : mode === "metal" ? "purple" : "amber");
-  render();
+  markPreset(DEFAULT_PRESET[mode]);
+  if (!loadFromHash()) render();
 })();
 </script>
 
