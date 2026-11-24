@@ -1,10 +1,21 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Coating colour lab for GEP (DCS World): thin films and dichroic stacks on visors, glass and metals, with texture values and shareable recipes.">
+<meta property="og:title" content="GEP Film Lab">
+<meta property="og:description" content="Thin-film and dichroic coating colours for GEP visors, glass and metals, with texture values and shareable recipes.">
+<meta property="og:type" content="website">
 <title>GEP Film Lab</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
+html, body { margin: 0; }
+:root { color-scheme: light; }
+
 /* Layout: optics-bench split — rendered visor + spectra strips on the left, authoring controls on the right; stacks on phones. */
 :root {
   --bg: #eef0f3;
@@ -110,8 +121,11 @@ details.switches p { margin: 0; }
 .card-wrap { display: grid; gap: 8px; }
 .card-wrap img { max-width: 100%; border-radius: 8px; border: 1px solid var(--line); }
 .btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.share-main { font: 600 0.85rem var(--font-body); padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); cursor: pointer; }
 </style>
 
+</head>
+<body>
 <div class="wrap">
   <header>
     <h1>GEP Film Lab</h1>
@@ -279,12 +293,11 @@ details.switches p { margin: 0; }
           <button class="copy" type="button" id="codeCopy">Copy code</button>
         </div>
         <div class="btnrow">
+          <button class="share-main" type="button" id="shareBtn">Share this swatch</button>
           <button class="copy" type="button" id="linkCopy">Copy link</button>
-          <button class="copy" type="button" id="cardMake">Make image card</button>
         </div>
         <div class="card-wrap" id="cardWrap" hidden>
-          <img id="cardImg" alt="Share card: coating preview with its code">
-          <div class="btnrow"><button class="copy" type="button" id="cardCopy">Copy image</button></div>
+          <img id="cardImg" alt="Share card: coating preview with its code and link">
         </div>
         <div class="share-row">
           <input type="text" id="codeIn" placeholder="Paste a GEPV1/…, GEPG1/… or GEPM1/… code" aria-label="Code to load" spellcheck="false" autocomplete="off">
@@ -490,6 +503,10 @@ details.switches p { margin: 0; }
 
   const $ = id => document.getElementById(id);
   const ARTIFACT_URL = "https://claude.ai/artifact/PN43XNLk2AyQ228azPz4Th";
+  // Links point at wherever this copy of the lab is hosted; inside a claude.ai artifact frame, at the artifact.
+  const IN_ARTIFACT = /claude|anthropic/i.test(location.hostname);
+  const SHARE_BASE = (/^https?:$/.test(location.protocol) && !IN_ARTIFACT) ? location.origin + location.pathname : ARTIFACT_URL;
+  const shareLink = () => `${SHARE_BASE}#${codeToHash($("codeOut").value)}`;
   const el = { thick: $("thick"), coat: $("coat"), ior: $("ior"), base: $("base"), metal: $("metal"),
                nH: $("nH"), nL: $("nL"), pairs: $("pairs"), rampLo: $("rampLo"), rampHi: $("rampHi"),
                gFA: $("gFA"), gRA: $("gRA"), gRR: $("gRR"), gBase: $("gBase"), gMetal: $("gMetal"),
@@ -876,14 +893,14 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
   }, "Copy"));
   $("codeCopy").addEventListener("click", () => copyText($("codeCopy"), $("codeOut").value, () => $("codeOut").select(), "Copy code"));
   $("linkCopy").addEventListener("click", () => {
-    const link = `${ARTIFACT_URL}#${codeToHash($("codeOut").value)}`;
+    const link = shareLink();
     copyText($("linkCopy"), link, () => { $("codeIn").value = link; $("codeIn").select(); }, "Copy link");
     status("Link copied. It opens the lab on this recipe for anyone who can open the lab.");
   });
 
   // ---- Image card: disc + angle strip + code, for pasting into chats ----
-  function makeCard() {
-    const W = 640, H = 260, c = document.createElement("canvas"); c.width = W; c.height = H;
+  function makeCard(link) {
+    const W = 640, H = 290, c = document.createElement("canvas"); c.width = W; c.height = H;
     const x = c.getContext("2d"), cs = getComputedStyle(document.documentElement);
     const col = n => cs.getPropertyValue(n).trim();
     x.fillStyle = col("--panel") || "#f8f9fb"; x.fillRect(0, 0, W, H);
@@ -910,22 +927,46 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
     x.fillStyle = col("--muted") || "#5d6673"; x.font = "12px Inter, system-ui, sans-serif";
     x.fillText("0°", 260, 204); x.fillText("reflection vs view angle", 380, 204); x.fillText("89°", 590, 204);
     x.fillText("Head-on " + $("roHead").textContent + " · colours brightness-normalised", 260, 236);
+    x.fillStyle = col("--accent") || "#8a6a2c"; x.font = "500 12px 'JetBrains Mono', ui-monospace, monospace";
+    const shortLink = link.replace(/^https?:\/\//, "");
+    x.fillText(shortLink.length > 86 ? shortLink.slice(0, 85) + "…" : shortLink, 30, 270);
     return c;
   }
-  let cardBlob = null;
-  $("cardMake").addEventListener("click", () => {
-    const c = makeCard();
-    $("cardImg").src = c.toDataURL("image/png");
-    $("cardWrap").hidden = false;
-    c.toBlob(b => { cardBlob = b; });
-    status("Card ready. Copy it, or right-click the image and copy it.");
-  });
-  $("cardCopy").addEventListener("click", async () => {
+  // ---- Share this swatch: one action puts the image, code and link together ----
+  // Touch devices: the native share sheet (image file + text). Elsewhere: one clipboard write holding the image,
+  // plain text (code + link) and HTML (image + code + link); apps take whichever form they accept. The card also
+  // carries the code and link, so an image-only paste still shares everything.
+  $("shareBtn").addEventListener("click", async () => {
+    const link = shareLink(), code = $("codeOut").value;
+    const title = `GEP Film Lab · ${mode[0].toUpperCase() + mode.slice(1)}`;
+    const text = `${title}\n${code}\n${link}`;
+    const c = makeCard(link), dataUrl = c.toDataURL("image/png");
+    $("cardImg").src = dataUrl; $("cardWrap").hidden = false;
+    const blobP = new Promise(r => c.toBlob(r, "image/png"));
+    const touch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+    if (touch && navigator.canShare) {
+      try {
+        const file = new File([await blobP], "gep-film-swatch.png", { type: "image/png" });
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title, text }); status("Shared."); return; }
+      } catch (err) { if (err && err.name === "AbortError") { status("Share cancelled."); return; } }
+    }
+    const html = `<p><img src="${dataUrl}" alt="${title}"><br><code>${code}</code><br><a href="${link}">${link}</a></p>`;
     try {
-      if (!cardBlob || !window.ClipboardItem) throw new Error();
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": cardBlob })]);
-      status("Image copied.");
-    } catch { status("This browser blocked copying the image here: right-click the card and choose Copy image.", true); }
+      await navigator.clipboard.write([new ClipboardItem({
+        "image/png": blobP,
+        "text/plain": new Blob([text], { type: "text/plain" }),
+        "text/html": new Blob([html], { type: "text/html" })
+      })]);
+      status("Copied the image, code and link together. Paste it anywhere: apps that take images get the card (which shows the code and link too), text-only apps get the code and link.");
+      return;
+    } catch {}
+    try {
+      await navigator.clipboard.writeText(text);
+      status("This browser only allowed text: the code and link are copied. Right-click the card to copy the image too.", true);
+    } catch {
+      $("codeIn").value = text.replace(/\n/g, "  "); $("codeIn").select();
+      status("Clipboard blocked here: the code and link are selected below, and the card can be copied with right-click.", true);
+    }
   });
 
   function loadCodeText(text, fromLink) {
@@ -969,4 +1010,5 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
 })();
 </script>
 
-</body></html>
+</body>
+</html>
