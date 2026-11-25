@@ -160,7 +160,7 @@ details.switches p { margin: 0; }
             <div class="label">Diffuse: authored → stored</div>
             <div class="swpair"><div class="swatch" id="swD"></div><span>→</span><div class="swatch" id="swDs"></div></div>
             <div class="ro"><span>Stored metallic</span><span id="roMs">–</span></div>
-            <div class="ro"><span>Diffuse change (largest channel, stored sRGB)</span><span id="roDd">–</span></div>
+            <div class="ro"><span>Diffuse change (largest channel, stored 8-bit)</span><span id="roDd">–</span></div>
             <div class="ro"><span>Coating kept under the cap</span><span id="roKeep">–</span></div>
           </div>
         </div>
@@ -423,7 +423,10 @@ details.switches p { margin: 0; }
     return S.map(v => clamp((v - k) / Math.max(1 - k, 1e-3), 0, 1));
   }
 
-  const toLin = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  // Texture values decode the way DCS does (deferredCommon.hlsl GammaToLinearSpace: pow 2.2), not the sRGB curve;
+  // the two differ by up to ~2x near black. toSRGB is only for drawing to this screen.
+  const toLin = c => Math.pow(Math.max(c, 0), 2.2);
+  const toGam = c => Math.pow(Math.max(c, 0), 1 / 2.2);   // LinearToGammaSpace: what the G-buffer stores
   const toSRGB = c => { c = clamp(c, 0, 1); return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; };
   const LUM = [0.2126, 0.7152, 0.0722];
   const lum = v => v[0]*LUM[0] + v[1]*LUM[1] + v[2]*LUM[2];
@@ -447,7 +450,7 @@ details.switches p { margin: 0; }
   // metallic guard can fade it in). The G-buffer holds one base colour + metallic, so solve for (m', base') giving
   // the coated F0 exactly and the diffuse luminance exactly; the solve pushes the diffuse hue toward the coating's.
   // Cap: the coating is faded (target F0 = lerp(S, coated, k)) to the largest k whose stored diffuse moves no more
-  // than the cap in 8-bit sRGB steps on any channel. Cap 0 = the material exactly as authored [labeled approximation].
+  // than the cap in stored 8-bit steps on any channel. Cap 0 = the material exactly as authored [labeled approximation].
   const CAP_OFF = 24;
   // Roots of 0.04 m'^2 + (Fl + Dl - 0.08) m' - (Fl - 0.04) = 0. m' = m is a root when F0 is uncoated; on dark bases
   // (base luminance < 0.04) the other root is also in [0,1], so take the root nearest the authored metallic.
@@ -461,7 +464,7 @@ details.switches p { margin: 0; }
                             : T.map(f => clamp((f - 0.04 * (1 - mS)) / mS, 0, 1));
     return { mS, baseS, Ds: baseS.map(b => b * (1 - mS)), F0: baseS.map(b => 0.04 * (1 - mS) + b * mS) };
   }
-  const sMove = (D, Ds) => 255 * Math.max(...D.map((d, i) => Math.abs(toSRGB(Ds[i]) - toSRGB(d))));
+  const sMove = (D, Ds) => 255 * Math.max(...D.map((d, i) => Math.abs(toGam(Ds[i]) - toGam(d))));
   function metalSolve(s, NoV, t01) {
     NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
     const m = s.m, base = s.baseLin, w = s.ramp;
@@ -476,7 +479,8 @@ details.switches p { margin: 0; }
     let k = 1, r = at(1);
     if (sMove(D, r.Ds) > cap) {                               // largest k under the cap (bisection)
       let lo = 0, hi = 1;
-      for (let it = 0; it < 16; it++) { const mid = (lo + hi) / 2; if (sMove(D, at(mid).Ds) <= cap) lo = mid; else hi = mid; }
+      // 6 steps = GEP_DEF_FILM_CAP_ITERS, so the lab and the shader land on the same coating amount
+      for (let it = 0; it < 6; it++) { const mid = (lo + hi) / 2; if (sMove(D, at(mid).Ds) <= cap) lo = mid; else hi = mid; }
       k = lo; r = lo > 0 ? at(lo) : { mS: m, baseS: base, Ds: D, F0: S };
     }
     return { ...r, S, T, D, w, k, dd: sMove(D, r.Ds), coated: true };
@@ -777,7 +781,7 @@ details.switches p { margin: 0; }
       $("recipe").textContent =
 `Normal map  B = ${s.B}    (film ${filmNm} nm / stack band ${bandNm} nm)
             A = ${s.A}    (${m})
-Base colour sRGB ${s.rgb8.join(", ")}    ${isMetal ? "(the material as authored)" : "(film mode only)"}
+Base colour RGB  ${s.rgb8.join(", ")}    ${isMetal ? "(the material as authored)" : "(film mode only)"}
 Metallic    ${s.metal8}${isMetal && s.ramp < 1 ? `    (coating ${Math.round(s.ramp * 100)}%: guard ${Math.round(s.lo * 255)}–${Math.round(s.hi * 255)})` : ""}${isMetal ? `
 Diffuse cap ${s.cap >= CAP_OFF ? "off" : s.cap + "/255"}  (global GEP_DEF_FILM_DIFFUSE_CAP)` : ""}
 Film IOR    ${s.ior.toFixed(2)}  (global GEP_FILM_IOR${f2(s.ior) !== f2(VISOR_DEF.ior) ? ", changed from 2.40" : ""})
@@ -810,8 +814,8 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
 `RoughMet A         = ${g.RA}    (${g.stack ? `stack band ${bandNm} nm` : `thickness ${Math.round(g.t01 * TMAX)} nm`})`,
 `RoughMet R         = ${g.RR}    (strength${g.gate ? " " + Math.round(g.strength * 100) + "%" : ", ignored while coating is off"})`,
 `Normal map A       = ${g.NM}    (${g.NM >= 255 ? "air behind the glass" : g.NM <= 0 ? "bonded: no back face" : "back face " + Math.round(g.backScale * 100) + "%"})`,
-`Base colour sRGB ${g.rgb8.join(", ")}    Metallic ${g.metal8}`,
-`Filter colour sRGB ${g.f8.join(", ")}    (absorption; hue shared with the coating counted once)`,
+`Base colour RGB  ${g.rgb8.join(", ")}    Metallic ${g.metal8}`,
+`Filter colour RGB ${g.f8.join(", ")}    (absorption; hue shared with the coating counted once)`,
 `Head-on F0 ${F0head.map(v => v.toFixed(3)).join(", ")}${needsC1 ? "    ⚠ green < 0.02: needs GEP_GLASS_C1" : ""}`];
       if (!g.neutral) lines.push("GEP_GLASS_FILM_NEUTRAL_SUBSTRATE 0");
       if (!g.slab) lines.push("Preview without back face (GEP_GLASS_SLAB 0)");
@@ -865,12 +869,12 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
     glass: {
       hint: "Glass material. Filter alpha turns the coating on; RoughMet carries thickness and strength.",
       disc: "Disc: a canopy patch, centre head-on, rim grazing, under a uniform white sky. Reflection includes the back face; transmission is the coating's complement combined with the filter (chroma-min), ignoring haze and diffuse alpha.",
-      foot: "Filter A 255 (or no alpha) = no coating; 16–254 = film with IOR (n − 1.2)/1.3 × 254; 0–15 = dichroic stack (author it as 0). Keep filter A flat per region and feather with RoughMet R. Thickness A = nm/400 × 255; band A = (nm − 380)/400 × 255. Under a coating, base white at metallic 0 is plain glass; grey 55 / 58 / 64 at metallic 255 picks PMMA / glass / polycarbonate. Filter RGB is absorption. Models the pending glass drop with its defaults."
+      foot: "Filter A 255 (or no alpha) = no coating; 16–254 = film with IOR (n − 1.2)/1.3 × 254; 0–15 = dichroic stack (author it as 0). Keep filter A flat per region and feather with RoughMet R. Thickness A = nm/400 × 255; band A = (nm − 380)/400 × 255. Under a coating, base white at metallic 0 is plain glass; grey 58 / 61 / 66 at metallic 255 picks PMMA / glass / polycarbonate. Filter RGB is absorption. Models the pending glass drop with its defaults."
     },
     metal: {
       hint: "Opaque default materials (deferred): paint, leather, metal. Normal-map B and A, at any metallic.",
       disc: "Disc: the coated reflectance as stored in the G-buffer at this view angle, after the diffuse cap. Diffuse swatches show the material's diffuse colour as authored and as stored.",
-      foot: "The coating sits on the material's own reflection, lerp(0.04, base, metallic), at any metallic: on a dielectric (leather, paint, metallic 0) it is a sheen over the 4% gloss, on metal it is the full tint. The G-buffer stores one colour and one metallic, so the lab solves for a stored pair that gives the coated reflection exactly and keeps the diffuse brightness; that pushes the diffuse hue toward the coating's. The cap (Global constants) fades the coating until the stored diffuse moves no more than the cap in 8-bit sRGB steps; cap 0 is the material as authored [labeled approximation]. Dark and mid-metallic bases take a coating with little diffuse shift; bright dielectric paint can't, so it keeps little or none. The metallic guard (default off) fades the coating in by metallic if stray normal-map alpha turns up on uncoated parts. Heat tint on titanium: straw → bronze → purple → blue between B 16 and 56; dither B gradients."
+      foot: "The coating sits on the material's own reflection, lerp(0.04, base, metallic), at any metallic: on a dielectric (leather, paint, metallic 0) it is a sheen over the 4% gloss, on metal it is the full tint. The G-buffer stores one colour and one metallic, so the lab solves for a stored pair that gives the coated reflection exactly and keeps the diffuse brightness; that pushes the diffuse hue toward the coating's. The cap (Global constants) fades the coating until the stored diffuse moves no more than the cap in stored 8-bit steps; cap 0 is the material as authored [labeled approximation]. Dark and mid-metallic bases take a coating with little diffuse shift; bright dielectric paint can't, so it keeps little or none. The metallic guard (default off) fades the coating in by metallic if stray normal-map alpha turns up on uncoated parts. Heat tint on titanium: straw → bronze → purple → blue between B 16 and 56; dither B gradients."
     }
   };
 
