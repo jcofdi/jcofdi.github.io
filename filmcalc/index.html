@@ -234,11 +234,11 @@ details.switches p { margin: 0; }
             </div>
             <div class="ctl" data-mode="metal" hidden>
               <div class="ctl-head"><label for="rampLo">Metallic guard start (<code>GEP_DEF_FILM_GUARD_LO</code>)</label><output id="oRampLo"></output></div>
-              <input type="range" id="rampLo" min="0" max="1" step="0.01" value="0">
+              <input type="range" id="rampLo" min="0" max="1" step="0.01" value="0.45">
             </div>
             <div class="ctl" data-mode="metal" hidden>
               <div class="ctl-head"><label for="rampHi">Metallic guard end (<code>GEP_DEF_FILM_GUARD_HI</code>)</label><output id="oRampHi"></output></div>
-              <input type="range" id="rampHi" min="0" max="1" step="0.01" value="0">
+              <input type="range" id="rampHi" min="0" max="1" step="0.01" value="0.65">
             </div>
           </div>
         </details>
@@ -543,7 +543,7 @@ details.switches p { margin: 0; }
                gFilter: $("gFilter"), gNeutral: $("gNeutral"), gSlab: $("gSlab"), gNM: $("gNM"),
                angle: $("angle") };
 
-  const VISOR_DEF = { thick: 0, nA: 255, base: "#bcbcbc", metal: 255, ior: 2.40, nH: 1.80, nL: 1.46, pairs: 8, rampLo: 0, rampHi: 0, capD: 4 };
+  const VISOR_DEF = { thick: 0, nA: 255, base: "#bcbcbc", metal: 255, ior: 2.40, nH: 1.80, nL: 1.46, pairs: 8, rampLo: 0.45, rampHi: 0.65, capD: 4 };
   const GLASS_OFF_A = 250;
   const GLASS_DEF = { gFA: 255, gRA: 0, gRR: 0, gBase: "#ffffff", gMetal: 0, gFilter: "#ffffff", gNeutral: true, gSlab: true, gNM: 255 };
 
@@ -572,8 +572,6 @@ details.switches p { margin: 0; }
       ["deepblue", "Deep blue", { ...TI, thick: 40 }],
       ["lightblue", "Light blue", { ...TI, thick: 52 }],
       ["gold2", "Second-order gold", { ...TI, thick: 70 }],
-      ["leather", "Black leather, blue sheen", { base: "#151517", metal: 0, nA: 191, thick: 12 }],
-      ["brownleather", "Brown leather, blue sheen", { base: "#1e1b19", metal: 0, nA: 191, thick: 12 }],
       ["haveglass", "Have Glass-style paint", { base: "#55585c", metal: 140, nA: 191, thick: 26 }],
       ["sheen", "Mid-metallic paint, subtle sheen", { base: "#8a8d90", metal: 150, nA: 191, thick: 24 }],
       ["bare", "Bare titanium", { ...TI, thick: 0, nA: 255 }]
@@ -880,7 +878,7 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
     metal: {
       hint: "Opaque default materials (deferred): paint, leather, metal. Normal-map B and A, at any metallic.",
       disc: "Disc: the coated reflectance as stored in the G-buffer at this view angle, after the diffuse cap. Diffuse swatches show the material's diffuse colour as authored and as stored.",
-      foot: "The coating sits on the material's own reflection, lerp(0.04, base, metallic), at any metallic: on a dielectric (leather, paint, metallic 0) it is a sheen over the 4% gloss, on metal it is the full tint. The G-buffer stores one colour and one metallic, so the lab solves for a stored pair that gives the coated reflection exactly and keeps the diffuse brightness; that pushes the diffuse hue toward the coating's. The cap (Global constants) fades the coating until the surface's colour under even lighting (diffuse plus its reflection) moves no more than the cap in 8-bit steps; cap 0 is the material as authored [labeled approximation]. A near-black diffuse under a bright reflection costs almost nothing, so metal at 240–254 keeps its coating; bright dielectric paint can't take one without visibly recolouring, so it keeps little or none. Dark warm bases under a cool coating (brown leather, blue sheen) shift their diffuse hue, which shows under raking light. The metallic guard (default off) fades the coating in by metallic if stray normal-map alpha turns up on uncoated parts. Heat tint on titanium: straw → bronze → purple → blue between B 16 and 56; dither B gradients."
+      foot: "The coating sits on the material's own reflection, lerp(0.04, base, metallic), at any metallic: on a dielectric (leather, paint, metallic 0) it is a sheen over the 4% gloss, on metal it is the full tint. The G-buffer stores one colour and one metallic, so the lab solves for a stored pair that gives the coated reflection exactly and keeps the diffuse brightness; that pushes the diffuse hue toward the coating's. The cap (Global constants) fades the coating until the surface's colour under even lighting (diffuse plus its reflection) moves no more than the cap in 8-bit steps; cap 0 is the material as authored [labeled approximation]. A near-black diffuse under a bright reflection costs almost nothing, so metal at 240–254 keeps its coating; bright dielectric paint can't take one without visibly recolouring, so it keeps little or none. Dark warm bases under a cool coating (brown leather, blue sheen) shift their diffuse hue, which shows under raking light. The metallic guard (on by default, metallic 0.45 → 0.65) fades the coating in by metallic: plain dielectrics (leather, ordinary paint) stay exactly as authored, and stray normal-map alpha on them can't make a coating. Set both guard values to 0 (Global constants) to try coatings on dielectrics as a sheen approximation; the reflection stays exact but the diffuse can only be approximated. Heat tint on titanium: straw → bronze → purple → blue between B 16 and 56; dither B gradients."
     }
   };
 
