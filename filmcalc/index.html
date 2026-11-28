@@ -160,7 +160,7 @@ details.switches p { margin: 0; }
             <div class="label">Diffuse: authored → stored</div>
             <div class="swpair"><div class="swatch" id="swD"></div><span>→</span><div class="swatch" id="swDs"></div></div>
             <div class="ro"><span>Stored metallic</span><span id="roMs">–</span></div>
-            <div class="ro"><span>Diffuse change (largest channel, stored 8-bit)</span><span id="roDd">–</span></div>
+            <div class="ro"><span>Visible colour change (largest channel, 8-bit)</span><span id="roDd">–</span></div>
             <div class="ro"><span>Coating kept under the cap</span><span id="roKeep">–</span></div>
           </div>
         </div>
@@ -449,7 +449,7 @@ details.switches p { margin: 0; }
   // The coating sits on the material's own specular S = lerp(0.04, base, metallic), at any metallic (an optional
   // metallic guard can fade it in). The G-buffer holds one base colour + metallic, so solve for (m', base') giving
   // the coated F0 exactly and the diffuse luminance exactly; the solve pushes the diffuse hue toward the coating's.
-  // Cap: the coating is faded (target F0 = lerp(S, coated, k)) to the largest k whose stored diffuse moves no more
+  // Cap: the coating is faded (target F0 = lerp(S, coated, k)) to the largest k whose visible colour (diffuse + reflection) moves no more
   // than the cap in stored 8-bit steps on any channel. Cap 0 = the material exactly as authored [labeled approximation].
   const CAP_OFF = 24;
   // Roots of 0.04 m'^2 + (Fl + Dl - 0.08) m' - (Fl - 0.04) = 0. m' = m is a root when F0 is uncoated; on dark bases
@@ -464,7 +464,11 @@ details.switches p { margin: 0; }
                             : T.map(f => clamp((f - 0.04 * (1 - mS)) / mS, 0, 1));
     return { mS, baseS, Ds: baseS.map(b => b * (1 - mS)), F0: baseS.map(b => 0.04 * (1 - mS) + b * mS) };
   }
-  const sMove = (D, Ds) => 255 * Math.max(...D.map((d, i) => Math.abs(toGam(Ds[i]) - toGam(d))));
+  // Visible change: per channel, the stored diffuse change measured on top of the surface's reflection (R = the stored
+  // F0), i.e. how far the surface's colour moves under even lighting, in stored 8-bit steps [labeled approximation].
+  // A near-black diffuse under a bright reflection (metallic ~240-254) costs almost nothing; a big change on a dim
+  // surface still counts.
+  const sMove = (D, Ds, R) => 255 * Math.max(...D.map((d, i) => Math.abs(toGam(Ds[i] + R[i]) - toGam(d + R[i]))));
   function metalSolve(s, NoV, t01) {
     NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
     const m = s.m, base = s.baseLin, w = s.ramp;
@@ -475,15 +479,16 @@ details.switches p { margin: 0; }
     const C = coatF0(S, NoV, t01, s.filmStr, s.stackMix, s);
     const T = S.map((v, i) => v + (C[i] - v) * w);            // full target F0
     const at = k => gbufSolve(S.map((v, i) => v + (T[i] - v) * k), D, m);
+    const mv = r => sMove(D, r.Ds, r.F0);
     const cap = s.cap >= CAP_OFF ? Infinity : s.cap;
     let k = 1, r = at(1);
-    if (sMove(D, r.Ds) > cap) {                               // largest k under the cap (bisection)
+    if (mv(r) > cap) {                               // largest k under the cap (bisection)
       let lo = 0, hi = 1;
       // 6 steps = GEP_DEF_FILM_CAP_ITERS, so the lab and the shader land on the same coating amount
-      for (let it = 0; it < 6; it++) { const mid = (lo + hi) / 2; if (sMove(D, at(mid).Ds) <= cap) lo = mid; else hi = mid; }
+      for (let it = 0; it < 6; it++) { const mid = (lo + hi) / 2; if (mv(at(mid)) <= cap) lo = mid; else hi = mid; }
       k = lo; r = lo > 0 ? at(lo) : { mS: m, baseS: base, Ds: D, F0: S };
     }
-    return { ...r, S, T, D, w, k, dd: sMove(D, r.Ds), coated: true };
+    return { ...r, S, T, D, w, k, dd: mv(r), coated: true };
   }
   function metalRefl(s, NoV, t01) {
     NoV = Math.max(clamp(NoV, 0, 1), 1e-3);
@@ -568,7 +573,7 @@ details.switches p { margin: 0; }
       ["lightblue", "Light blue", { ...TI, thick: 52 }],
       ["gold2", "Second-order gold", { ...TI, thick: 70 }],
       ["leather", "Black leather, blue sheen", { base: "#151517", metal: 0, nA: 191, thick: 12 }],
-      ["brownleather", "Brown leather, blue sheen (cap-limited)", { base: "#1e1b19", metal: 0, nA: 191, thick: 12 }],
+      ["brownleather", "Brown leather, blue sheen", { base: "#1e1b19", metal: 0, nA: 191, thick: 12 }],
       ["haveglass", "Have Glass-style paint", { base: "#55585c", metal: 140, nA: 191, thick: 26 }],
       ["sheen", "Mid-metallic paint, subtle sheen", { base: "#8a8d90", metal: 150, nA: 191, thick: 24 }],
       ["bare", "Bare titanium", { ...TI, thick: 0, nA: 255 }]
@@ -764,7 +769,7 @@ details.switches p { margin: 0; }
       const guardOff = s.lo <= 0 && s.hi <= 0;
       $("oRampLo").innerHTML = guardOff ? `off: coating at any metallic` : `metallic ${Math.round(s.lo * 255)}`;
       $("oRampHi").innerHTML = guardOff ? `` : `metallic ${Math.round(s.hi * 255)}${s.hi <= s.lo ? " · end ≤ start: hard cut" : ""}`;
-      $("oCapD").innerHTML = s.cap >= CAP_OFF ? `off: full solve` : `stored diffuse moves ≤ <b>${s.cap}</b>/255 per channel`;
+      $("oCapD").innerHTML = s.cap >= CAP_OFF ? `off: full solve` : `visible colour moves ≤ <b>${s.cap}</b>/255 per channel`;
       $("roSub").textContent = pct(lum(s.sub));
       setMarker("mkThk", s.B / 255);
       thkAt = x => reflAt(NoV, x / 255);
@@ -776,7 +781,7 @@ details.switches p { margin: 0; }
         $("swDs").style.background = css(sol.Ds, 1);
         $("roMs").textContent = `${sol.mS.toFixed(3)} (${Math.round(sol.mS * 255)})`;
         $("roDd").textContent = sol.dd.toFixed(1) + "/255";
-        $("roKeep").textContent = !sol.coated ? "–" : `${Math.round(sol.k * 100)}%` + (sol.k < 1 ? ` (full needs ${sMove(sol.D, gbufSolve(sol.T, sol.D, s.m).Ds).toFixed(1)}/255)` : "");
+        $("roKeep").textContent = !sol.coated ? "–" : `${Math.round(sol.k * 100)}%` + (sol.k < 1 ? ` (full needs ${(r => sMove(sol.D, r.Ds, r.F0))(gbufSolve(sol.T, sol.D, s.m)).toFixed(1)}/255)` : "");
       }
       const m = s.stackMix >= 1 ? "stack" : s.stackMix > 0 ? "film → stack blend" : s.filmStr > 0 ? "single film" : "none";
       $("recipe").textContent =
@@ -875,7 +880,7 @@ Stack       nH ${s.nH.toFixed(2)}, nL ${s.nL.toFixed(2)}, ${s.pairs} pairs  (glo
     metal: {
       hint: "Opaque default materials (deferred): paint, leather, metal. Normal-map B and A, at any metallic.",
       disc: "Disc: the coated reflectance as stored in the G-buffer at this view angle, after the diffuse cap. Diffuse swatches show the material's diffuse colour as authored and as stored.",
-      foot: "The coating sits on the material's own reflection, lerp(0.04, base, metallic), at any metallic: on a dielectric (leather, paint, metallic 0) it is a sheen over the 4% gloss, on metal it is the full tint. The G-buffer stores one colour and one metallic, so the lab solves for a stored pair that gives the coated reflection exactly and keeps the diffuse brightness; that pushes the diffuse hue toward the coating's. The cap (Global constants) fades the coating until the stored diffuse moves no more than the cap in stored 8-bit steps; cap 0 is the material as authored [labeled approximation]. Dark and mid-metallic bases take a coating with little diffuse shift; bright dielectric paint can't, so it keeps little or none. The metallic guard (default off) fades the coating in by metallic if stray normal-map alpha turns up on uncoated parts. Heat tint on titanium: straw → bronze → purple → blue between B 16 and 56; dither B gradients."
+      foot: "The coating sits on the material's own reflection, lerp(0.04, base, metallic), at any metallic: on a dielectric (leather, paint, metallic 0) it is a sheen over the 4% gloss, on metal it is the full tint. The G-buffer stores one colour and one metallic, so the lab solves for a stored pair that gives the coated reflection exactly and keeps the diffuse brightness; that pushes the diffuse hue toward the coating's. The cap (Global constants) fades the coating until the surface's colour under even lighting (diffuse plus its reflection) moves no more than the cap in 8-bit steps; cap 0 is the material as authored [labeled approximation]. A near-black diffuse under a bright reflection costs almost nothing, so metal at 240–254 keeps its coating; bright dielectric paint can't take one without visibly recolouring, so it keeps little or none. Dark warm bases under a cool coating (brown leather, blue sheen) shift their diffuse hue, which shows under raking light. The metallic guard (default off) fades the coating in by metallic if stray normal-map alpha turns up on uncoated parts. Heat tint on titanium: straw → bronze → purple → blue between B 16 and 56; dither B gradients."
     }
   };
 
